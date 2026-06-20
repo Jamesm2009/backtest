@@ -1,24 +1,24 @@
 """
-KCM Portfolio Backtest Tool
+Portfolio Backtest Tool
 - Modes: Mutual Funds (35) / ETFs (74, incl. benchmark-only tickers) / Custom tickers
 - Up to 10 holdings + Cash, default equal weight with optional override
 - Quarterly rebalancing, cash-bridging for any ticker shorter than the lookback window
-- Benchmarks: SPY Only, Dalio All Weather, 60/40 ETF, Growth ETFs
+- Benchmarks: SPY Only, Dalio All Weather, 60/40 ETF, Growth ETFs (each toggleable),
+  plus an optional user-defined custom benchmark
 - Weekly series, $10,000 start, dividend reinvestment via Yahoo auto-adjusted close
-- Metrics: total return, CAGR, annualized vol, all-time max DD, rolling-12mo max DD
-- PDF export (chart + tables) via /api/pdf
+- Metrics: total return, CAGR, annualized vol, Sharpe ratio, rolling-12mo max DD
+- 63-week moving average overlay on the portfolio line
 """
 
 import json
+import math
 import os
 import threading
 import time
-from io import BytesIO
-from flask import Flask, render_template, jsonify, request, send_file
+from flask import Flask, render_template, jsonify, request
 
 import data_sources as ds
 import engine as eng
-from pdf_report import build_pdf
 
 app = Flask(__name__)
 
@@ -148,14 +148,15 @@ def compute_full_result(parsed):
     if custom_benchmark:
         bench_tickers_needed |= set(custom_benchmark["tickers"])
 
-    all_tickers = sorted(set(portfolio_tickers) | bench_tickers_needed)
-    panel, missing = ds.build_price_panel(all_tickers, lookback)
+    all_tickers = sorted(set(portfolio_tickers) | bench_tickers_needed | {"SPY"})
+    panel, missing = ds.build_price_panel(all_tickers, lookback, known_tickers=set(_ALL_KNOWN_TICKERS))
     if panel is None or panel.empty:
         return None, "Could not retrieve price data for any selected ticker."
 
     series = {}
     metrics = {}
     benchmark_labels = {}
+    spy_prices = panel["SPY"] if "SPY" in panel.columns else None
 
     def run(weights_dict, label_key):
         cols = [t for t in weights_dict.keys() if t != "CASH" and t in panel.columns]
@@ -168,16 +169,28 @@ def compute_full_result(parsed):
             "dates": [d.strftime("%Y-%m-%d") for d in vals.index],
             "values": [round(float(v), 2) for v in vals.values],
         }
+        beta, corr = (eng.beta_and_correlation(vals, spy_prices) if spy_prices is not None
+                      else (None, None))
         metrics[label_key] = {
             "total_return": eng.total_return(vals),
             "cagr": eng.cagr(vals),
             "annualized_vol": eng.annualized_vol(vals),
+            "sharpe_ratio": eng.sharpe_ratio(vals),
+            "sortino_ratio": eng.sortino_ratio(vals),
+            "beta_vs_spy": beta,
+            "correlation_vs_spy": corr,
             "max_drawdown_alltime": eng.max_drawdown_alltime(vals),
             "max_drawdown_rolling_12mo": eng.max_drawdown_rolling_12mo(vals),
             "final_value": round(float(vals.iloc[-1]), 2),
         }
+        return vals
 
-    run(weights, "portfolio")
+    portfolio_vals = run(weights, "portfolio")
+    ma63 = eng.rolling_mean(portfolio_vals, window=63)
+    series["portfolio_ma63"] = {
+        "dates": [d.strftime("%Y-%m-%d") for d in ma63.index],
+        "values": [round(float(v), 2) if not math.isnan(v) else None for v in ma63.values],
+    }
     for key in include_benchmarks:
         run(BENCHMARKS[key]["weights"], key)
         benchmark_labels[key] = BENCHMARKS[key]["label"]
@@ -228,22 +241,6 @@ def api_backtest():
     return jsonify(result)
 
 
-@app.route("/api/pdf", methods=["POST"])
-def api_pdf():
-    body = request.get_json(force=True, silent=True) or {}
-    parsed, err = _validate_request(body)
-    if err:
-        return jsonify({"error": err}), 400
-    result, err2 = compute_full_result(parsed)
-    if err2:
-        return jsonify({"error": err2}), 422
-    pdf_bytes = build_pdf(result)
-    buf = BytesIO(pdf_bytes)
-    buf.seek(0)
-    return send_file(buf, mimetype="application/pdf", as_attachment=True,
-                      download_name="kcm_portfolio_backtest.pdf")
-
-
 def _do_refresh():
     with _refresh_lock:
         _refresh_state["running"] = True
@@ -253,7 +250,7 @@ def _do_refresh():
 
     for t in _ALL_KNOWN_TICKERS:
         try:
-            ds.cache_ticker(t)
+            ds.seed_or_update_ticker(t, ttl=ds.KNOWN_TICKER_TTL_SECONDS)
         except Exception as e:
             with _refresh_lock:
                 _refresh_state["errors"].append(f"{t}: {e}")
