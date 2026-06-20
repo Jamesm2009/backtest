@@ -79,7 +79,21 @@ table.perf-table tr.portfolio-row { background: #dbeafe; font-weight: 700; }
 @media print {
   header, .controls, .loading-spin { display: none !important; }
   .layout { display: block; }
-  .results { min-width: 0; }
+  .results { min-width: 0; width: 100% !important; }
+  .chart-container {
+    width: 100% !important;
+    height: 380px !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  /* Chart.js sets an inline pixel width/height on the canvas itself, sized to
+     the on-screen layout — without !important here, that inline style wins
+     over this stylesheet and the chart overflows the printed page width. */
+  #chart {
+    width: 100% !important;
+    height: 100% !important;
+  }
+  table.perf-table, .holdings-summary { page-break-inside: avoid; break-inside: avoid; }
 }
 </style>
 </head>
@@ -535,6 +549,10 @@ function renderHoldingsSummary(data) {
   }
   document.getElementById('holdingsSummary').innerHTML = `<div><b>Holdings:</b> ${links}${cash}</div>${cbHtml}${note}`;
 }
+
+window.addEventListener('beforeprint', () => {
+  if (chartInstance) chartInstance.resize();
+});
 
 populateDropdown();
 renderSelected('portfolio');
