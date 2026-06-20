@@ -273,6 +273,39 @@ def refresh():
     return jsonify({"status": "refresh started", "tickers": len(_ALL_KNOWN_TICKERS)})
 
 
+@app.route("/redis-test")
+def redis_test():
+    """
+    Diagnostic route: confirms whether REDIS_URL/REDIS_TOKEN are configured,
+    does a live round-trip SET/GET, and lists what's actually cached right now.
+    """
+    info = {
+        "redis_url_set": bool(ds.REDIS_URL),
+        "redis_token_set": bool(ds.REDIS_TOKEN),
+    }
+    if not ds.REDIS_URL or not ds.REDIS_TOKEN:
+        info["error"] = ("UPSTASH_REDIS_REST_URL and/or UPSTASH_REDIS_REST_TOKEN are not set "
+                          "in this app's environment — every cache call is silently no-op'ing "
+                          "and falling back to a live Yahoo Finance fetch every time. "
+                          "Run: dokku config:set backtest UPSTASH_REDIS_REST_URL=... "
+                          "UPSTASH_REDIS_REST_TOKEN=...")
+        return jsonify(info), 200
+
+    test_key = "backtest_redis_test_key"
+    set_ok = ds.redis_set_json(test_key, {"ping": "pong"}, ex_seconds=30)
+    readback = ds.redis_get_json(test_key)
+    info["roundtrip_set_ok"] = set_ok
+    info["roundtrip_get_value"] = readback
+    info["roundtrip_passed"] = (readback == {"ping": "pong"})
+
+    keys_result = ds._pipeline([["KEYS", ds.PRICE_KEY_PREFIX + "*"]])
+    keys = keys_result[0].get("result") if keys_result else None
+    info["cached_ticker_count"] = len(keys) if keys else 0
+    info["cached_tickers_sample"] = sorted(keys)[:20] if keys else []
+
+    return jsonify(info)
+
+
 @app.route("/status")
 def status():
     with _refresh_lock:
