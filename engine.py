@@ -38,6 +38,17 @@ def run_backtest(weights: dict, price_panel: pd.DataFrame, start_value: float = 
     for i, d in enumerate(dates):
         is_rebalance = (i == 0) or (i % rebalance_weeks == 0)
 
+        if i > 0:
+            # Always apply this week's price movement to the existing allocation
+            # FIRST — including on rebalance weeks. Skipping this on rebalance
+            # weeks would silently drop that week's return for every 13th week.
+            for t in tickers:
+                r = rets.loc[d, t]
+                if pd.isna(r):
+                    continue
+                alloc[t] *= (1.0 + r)
+            # CASH: flat, 0% return
+
         if is_rebalance:
             total = start_value if i == 0 else sum(alloc.values())
             new_alloc = {t: 0.0 for t in tickers}
@@ -50,15 +61,6 @@ def run_backtest(weights: dict, price_panel: pd.DataFrame, start_value: float = 
                     new_alloc["CASH"] += total * weights[t]
             new_alloc["CASH"] += total * cash_target
             alloc = new_alloc
-        else:
-            for t in tickers:
-                r = rets.loc[d, t]
-                if pd.isna(r):
-                    # ticker has no price this week (pre-inception) — stays in cash,
-                    # contributes nothing here since alloc[t] should be 0 in that case
-                    continue
-                alloc[t] *= (1.0 + r)
-            # CASH: flat, 0% return
 
         values[i] = sum(alloc.values())
 
@@ -100,3 +102,65 @@ def annualized_vol(values: pd.Series) -> float:
 
 def total_return(values: pd.Series) -> float:
     return values.iloc[-1] / values.iloc[0] - 1
+
+
+def sharpe_ratio(values: pd.Series, risk_free_annual: float = 0.0) -> float:
+    """
+    Annualized Sharpe ratio from weekly returns. Risk-free rate defaults to 0%
+    (a simplifying assumption — swap in a T-bill series later for more rigor).
+    """
+    weekly_ret = values.pct_change().dropna()
+    if weekly_ret.empty:
+        return None
+    weekly_rf = (1.0 + risk_free_annual) ** (1 / 52) - 1.0
+    excess = weekly_ret - weekly_rf
+    std = excess.std()
+    if std == 0 or pd.isna(std):
+        return None
+    return (excess.mean() / std) * np.sqrt(52)
+
+
+def sortino_ratio(values: pd.Series, risk_free_annual: float = 0.0) -> float:
+    """
+    Annualized Sortino ratio: like Sharpe, but only penalizes downside volatility
+    (weeks where the return fell short of the risk-free rate). Same 0% risk-free
+    assumption as sharpe_ratio.
+    """
+    weekly_ret = values.pct_change().dropna()
+    if weekly_ret.empty:
+        return None
+    weekly_rf = (1.0 + risk_free_annual) ** (1 / 52) - 1.0
+    excess = weekly_ret - weekly_rf
+    downside = excess[excess < 0]
+    if downside.empty:
+        return None
+    downside_dev = np.sqrt((downside ** 2).mean())
+    if downside_dev == 0:
+        return None
+    return (excess.mean() / downside_dev) * np.sqrt(52)
+
+
+def beta_and_correlation(values: pd.Series, benchmark_prices: pd.Series):
+    """
+    Beta and correlation of `values` (e.g. portfolio value series) against a
+    benchmark price series (e.g. SPY), both at weekly resolution. Returns
+    (beta, correlation), either of which may be None if there's not enough
+    overlapping data.
+    """
+    port_ret = values.pct_change().dropna()
+    bench_ret = benchmark_prices.pct_change().dropna()
+    aligned = pd.concat([port_ret, bench_ret], axis=1, join="inner").dropna()
+    if len(aligned) < 2:
+        return None, None
+    p, b = aligned.iloc[:, 0], aligned.iloc[:, 1]
+    var_b = b.var()
+    if var_b == 0 or pd.isna(var_b):
+        return None, None
+    beta = p.cov(b) / var_b
+    corr = p.corr(b)
+    return (None if pd.isna(beta) else beta), (None if pd.isna(corr) else corr)
+
+
+def rolling_mean(values: pd.Series, window: int = 63) -> pd.Series:
+    """Simple trailing moving average, NaN until `window` points are available."""
+    return values.rolling(window=window, min_periods=window).mean()
