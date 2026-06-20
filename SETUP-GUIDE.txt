@@ -1,0 +1,183 @@
+Portfolio Backtest Tool — Setup & Deployment Guide
+========================================================
+Dokku app, deployed the same way as your other dashboards (breadth, OCC).
+
+WHAT THIS APP DOES
+-------------------
+- Mode toggle: Mutual Funds (35) / ETFs (74) / Custom tickers (free text, up to 10)
+- Default equal weight across up to 10 holdings + Cash, with optional per-holding override
+- Quarterly rebalancing
+- Any holding with less history than the chosen 10/15-year window sits in Cash
+  (0% return) until its first available trading date, then is picked up at the
+  next quarterly rebalance — same rule applies to benchmark constituents.
+- 4 fixed benchmarks (each individually toggleable on/off): SPY Only,
+  Ray Dalio All Weather, 60/40 ETF, Growth ETFs — composition shown under each
+- Optional 5th user-defined custom benchmark (own ticker/weight picker)
+- Weekly resolution, $10,000 start, dividends reinvested (via Yahoo Finance
+  auto-adjusted close, which already bakes in distribution reinvestment AND
+  the fund's expense-ratio drag — both are embedded in the NAV Yahoo reports,
+  so no separate fee adjustment is needed)
+- 63-week moving average overlay on the portfolio line
+- Metrics: total return, CAGR, annualized volatility, Sharpe ratio (0% risk-free
+  rate assumption), and worst rolling-12-month max drawdown
+- Print button (browser print dialog's "Save as PDF" destination covers PDF
+  export — no separate server-side PDF generation)
+- Morningstar links on every symbol
+- CSV export of the full weekly series (portfolio, 63-wk MA, each shown
+  benchmark) for offline analysis
+- Sortino ratio and Beta-vs-SPY alongside Sharpe in the performance table
+- Data layer: known tickers (the 35 MF / 74 ETF / benchmark lists) are seeded
+  once with a full history fetch, then kept warm by a weekly incremental
+  update (small fetch + merge, not a full re-download). Custom/ad hoc tickers
+  are fetched on demand and cached for just 1 hour.
+
+FILES IN THIS PACKAGE
+----------------------
+  app.py              — Flask routes
+  engine.py           — backtest math (rebalancing, cash-bridging, metrics)
+  data_sources.py      — Yahoo Finance fetch + Upstash Redis cache
+  funds_mf.json        — 35 mutual funds (same list as your MF dashboard)
+  funds_etf.json       — 74 ETFs (your 70 + VTI/VGLT/PDBC/SPHB needed for benchmarks)
+  benchmarks.json      — the 4 fixed benchmark portfolios
+  requirements.txt
+  Procfile
+  templates/index.html — the UI
+
+---------------------------------------------------------------
+STEP 1 — Upload to GitHub
+---------------------------------------------------------------
+1. Go to github.com/Jamesm2009 → New repository → name it: kcm-backtest-tool
+2. On the next page, click "uploading an existing file"
+3. DRAG these files in (never use the web editor — it corrupts quote characters):
+      app.py
+      engine.py
+      data_sources.py
+      funds_mf.json
+      funds_etf.json
+      benchmarks.json
+      requirements.txt
+      Procfile
+      templates/index.html   ← type "templates/index.html" in the upload box;
+                                GitHub creates the folder automatically
+4. Commit changes.
+
+---------------------------------------------------------------
+STEP 2 — Create the Dokku app (run via the DigitalOcean web Console,
+          same as your other apps — no local terminal needed)
+---------------------------------------------------------------
+On the droplet:
+
+    dokku apps:create backtest
+
+    # Reuse the SAME Upstash Redis credentials you already use for the
+    # other dashboards — keys are namespaced ("backtest_price_weekly:...")
+    # so there's no collision with breadth/OCC/ETF-flow data.
+    dokku config:set backtest UPSTASH_REDIS_REST_URL="<your existing Upstash URL>"
+    dokku config:set backtest UPSTASH_REDIS_REST_TOKEN="<your existing Upstash token>"
+
+    # Port mapping (same pattern as your other Dokku apps)
+    dokku ports:add backtest http:80:5000
+    dokku ports:add backtest https:443:5000
+
+---------------------------------------------------------------
+STEP 3 — DNS + SSL
+---------------------------------------------------------------
+1. In DigitalOcean DNS for market-dashboards.com, add an A record:
+      backtest.market-dashboards.com  →  <your droplet IP>
+2. On the droplet:
+      dokku domains:add backtest backtest.market-dashboards.com
+      dokku domains:remove backtest backtest.ondigitalocean.app   (if present — extra/typo domains break Let's Encrypt)
+      dokku letsencrypt:enable backtest
+
+---------------------------------------------------------------
+STEP 4 — Deploy the code
+---------------------------------------------------------------
+    dokku git:sync --build backtest https://<YOUR_GITHUB_TOKEN>@github.com/Jamesm2009/kcm-backtest-tool main
+
+Wait for the build to finish, then visit https://backtest.market-dashboards.com
+
+---------------------------------------------------------------
+STEP 5 — Weekly cache refresh (cron)
+---------------------------------------------------------------
+The first time /refresh runs for a ticker (or anyone runs a backtest on an
+uncached ticker), the app does a FULL historical fetch from Yahoo Finance —
+slow (a few seconds per ticker). Every run after that is INCREMENTAL: it only
+re-fetches the last ~3 weeks and merges it into the cached series, rather
+than re-downloading 16 years of history every time. Since the whole tool
+works at weekly resolution anyway, a WEEKLY cron (not daily) is all that's
+needed to keep the cache warm:
+
+  Option A — system cron on the droplet:
+      crontab -e
+      0 18 * * 6  curl -s https://backtest.market-dashboards.com/refresh
+      (Saturday 6 PM — comfortably after Friday's close has settled)
+
+  Option B — cron-job.org (free, no droplet access needed):
+      URL: https://backtest.market-dashboards.com/refresh
+      Schedule: weekly, Saturday at 6:00 PM
+
+Check progress any time at: https://backtest.market-dashboards.com/status
+
+NOTE: the refresh loop hits ~110 known tickers with a 1-second pause between
+each (to be polite to Yahoo Finance). The FIRST run (seeding all 110 tickers
+from scratch) takes roughly 2 minutes; every run after that is much faster
+since each ticker is just a small incremental fetch, not a full re-download.
+
+Custom tickers (typed in free-text, not part of the 35 MF / 74 ETF lists)
+are never pre-warmed by this cron — they're fetched on demand the first time
+someone backtests them, and cached for only 1 hour (not 9 days), since
+there's no way to know in advance which ad hoc tickers someone will type in.
+
+---------------------------------------------------------------
+UPDATING THE FUND LISTS LATER
+---------------------------------------------------------------
+1. Edit funds_mf.json or funds_etf.json on your computer.
+2. On GitHub: open the file → pencil icon (Edit) → paste updated contents → Commit.
+   (Web editor is fine for .json since there are no smart-quote characters at risk
+   the way there are in .py/.js — but if in doubt, delete + drag-and-drop replace.)
+3. Re-run: dokku git:sync --build backtest https://TOKEN@github.com/Jamesm2009/kcm-backtest-tool main
+
+---------------------------------------------------------------
+HOW THE CASH-BRIDGING WORKS (for your reference)
+---------------------------------------------------------------
+At each quarterly rebalance date, every selected holding's target weight is
+checked against its actual price history. If a ticker has no price data yet
+(e.g. IBIT before its 2024 launch, in a 15-year backtest), its target weight
+is redirected into Cash for that period. Once the ticker's data begins, its
+weight is picked back up at the NEXT quarterly rebalance (not immediately,
+to stay consistent with the quarterly-only trading rule). This applies both
+to your selected holdings and to the benchmark constituents (e.g. PDBC in
+the Dalio All Weather benchmark, which only launched in 2014).
+
+The SAME mechanism handles a fund that CLOSES partway through the backtest
+window: real returns are used for as long as Yahoo Finance has data, then
+(once the data stops for 3+ consecutive weeks — data_sources.py caps the
+forward-fill at 2 weeks specifically so a genuine closure isn't mistaken for
+a minor fetch-timing gap) its weight is redirected to Cash at the next
+rebalance, same as a not-yet-launched ticker.
+
+---------------------------------------------------------------
+TROUBLESHOOTING
+---------------------------------------------------------------
+Problem: Nothing shows up in Redis even after running backtests
+→ Visit https://backtest.market-dashboards.com/redis-test — it tells you
+  directly whether UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN are
+  even set in this app's environment, does a live round-trip SET/GET, and
+  lists how many price-cache keys currently exist. If the env vars aren't
+  set, every cache call silently no-ops and falls back to a live Yahoo
+  Finance fetch on every request — which is why the app still "works" and
+  shows data even though nothing is persisting in Redis. Fix with:
+    dokku config:set backtest UPSTASH_REDIS_REST_URL="..." UPSTASH_REDIS_REST_TOKEN="..."
+
+Problem: "Could not retrieve price data" error
+→ Check /status to see if the cache is warm. Try /refresh manually.
+  Some custom tickers (illiquid OTC stocks, very new IPOs) may not have
+  enough Yahoo Finance history for a 10/15-year backtest.
+
+Problem: Print / Save as PDF looks cramped
+→ Use the browser's print preview; the page hides the left controls panel
+  automatically in print mode (see the @media print rule in index.html) so
+  only the chart and tables print.
+
+Problem: First backtest after a code deploy is slow
+→ Normal — the cache is cold until the next /refresh cron run.
