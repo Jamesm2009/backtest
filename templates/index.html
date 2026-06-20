@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KCM Portfolio Backtest Tool</title>
+<title>Portfolio Backtest Tool</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
 :root {
@@ -19,7 +19,7 @@ header .sub { font-size: 11px; color: #93c5fd; margin-top: 2px; }
 
 .layout { display: flex; gap: 14px; padding: 14px; align-items: flex-start; flex-wrap: wrap; }
 .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
-.controls { width: 360px; flex-shrink: 0; }
+.controls { width: 290px; flex-shrink: 0; }
 .results { flex: 1; min-width: 480px; }
 
 h2.panel-title { font-size: 13px; color: var(--header); margin-bottom: 10px; text-transform: uppercase; letter-spacing: .4px; }
@@ -30,7 +30,7 @@ h2.panel-title { font-size: 13px; color: var(--header); margin-bottom: 10px; tex
 
 label.field-label { display: block; font-size: 11px; color: var(--muted); margin: 10px 0 4px; font-weight: 600; text-transform: uppercase; }
 
-select.holdings-select { width: 100%; height: 150px; font-size: 12.5px; border: 1px solid var(--border); border-radius: 6px; padding: 4px; }
+select.holdings-select { width: 100%; font-size: 12.5px; border: 1px solid var(--border); border-radius: 6px; padding: 4px; }
 textarea.ticker-textarea { width: 100%; height: 50px; font-size: 12.5px; border: 1px solid var(--border); border-radius: 6px; padding: 6px; resize: vertical; }
 
 .lookback-toggle { display: flex; gap: 6px; }
@@ -38,28 +38,28 @@ textarea.ticker-textarea { width: 100%; height: 50px; font-size: 12.5px; border:
 .lookback-toggle button.active { background: var(--gold); color: #fff; border-color: var(--gold); }
 
 .selected-list .row { display: flex; align-items: center; gap: 6px; padding: 3px 0; border-bottom: 1px solid #f1f5f9; }
-.selected-list .row span.sym { font-family: 'Courier New', monospace; font-weight: 700; width: 60px; }
-.selected-list .row input { width: 56px; font-size: 11.5px; padding: 2px 4px; border: 1px solid var(--border); border-radius: 4px; text-align: right; }
+.selected-list .row span.sym { font-family: 'Courier New', monospace; font-weight: 700; width: 56px; font-size: 11.5px; }
+.selected-list .row input { width: 50px; font-size: 11.5px; padding: 2px 4px; border: 1px solid var(--border); border-radius: 4px; text-align: right; }
 .selected-list .row button.rm { background: none; border: none; color: var(--red); cursor: pointer; font-size: 13px; }
 .weight-total { font-size: 11px; margin-top: 6px; font-weight: 700; }
 
 .btn-primary { width: 100%; margin-top: 14px; background: var(--accent); color: #fff; border: none; border-radius: 6px; padding: 10px; font-size: 13px; font-weight: 700; cursor: pointer; }
 .btn-primary:hover { background: #1d4ed8; }
 .btn-primary:disabled { background: #9ca3af; cursor: not-allowed; }
-.btn-row { display: flex; gap: 8px; margin-top: 8px; }
-.btn-secondary { flex: 1; background: #fff; border: 1px solid var(--accent); color: var(--accent); border-radius: 6px; padding: 8px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.btn-secondary { width: 100%; margin-top: 8px; background: #fff; border: 1px solid var(--accent); color: var(--accent); border-radius: 6px; padding: 8px; font-size: 12px; font-weight: 600; cursor: pointer; }
 .btn-secondary:hover { background: #eff6ff; }
-.btn-secondary.small { padding: 4px 8px; font-size: 11px; }
+.btn-secondary.small { padding: 4px 8px; font-size: 11px; margin-top: 6px; }
 
-.bench-check-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 12.5px; }
-.bench-check-row input { width: 16px; height: 16px; }
-.bench-check-row .swatch { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.bench-check-row { padding: 5px 0; border-bottom: 1px solid #f8fafc; }
+.bench-check-row .top { display: flex; align-items: center; gap: 7px; font-size: 12.5px; }
+.bench-check-row input { width: 15px; height: 15px; }
+.bench-check-row .swatch { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+.bench-check-row .composition { font-size: 10.5px; color: var(--muted); margin-left: 22px; margin-top: 1px; }
 
 .custom-bench-box { border: 1px dashed var(--border); border-radius: 6px; padding: 10px; margin-top: 8px; }
-.custom-bench-box.disabled { opacity: 0.45; pointer-events: none; }
 input.bench-label-input { width: 100%; font-size: 12.5px; padding: 5px 7px; border: 1px solid var(--border); border-radius: 6px; margin-top: 4px; }
 
-#chartWrap { background: var(--surface); border-radius: 6px; padding: 8px; }
+.chart-container { position: relative; width: 100%; height: 520px; background: var(--surface); border-radius: 6px; padding: 8px; }
 #errBox { display: none; background: #fef2f2; border: 1px solid #fca5a5; color: #991b1b; padding: 8px 12px; border-radius: 6px; font-size: 12px; margin-bottom: 10px; }
 
 table.perf-table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 12px; }
@@ -74,9 +74,10 @@ table.perf-table tr.portfolio-row { background: #dbeafe; font-weight: 700; }
 .holdings-summary a:hover { text-decoration: underline; }
 
 .loading-spin { display: none; text-align: center; padding: 30px; color: var(--muted); font-size: 13px; }
+.footnote { font-size: 10.5px; color: var(--muted); margin-top: 6px; }
 
 @media print {
-  header, .controls, .btn-row, .loading-spin { display: none !important; }
+  header, .controls, .loading-spin { display: none !important; }
   .layout { display: block; }
   .results { min-width: 0; }
 }
@@ -86,7 +87,7 @@ table.perf-table tr.portfolio-row { background: #dbeafe; font-weight: 700; }
 
 <header>
   <div>
-    <h1>📊 KCM Portfolio Backtest Tool</h1>
+    <h1>📊 Portfolio Backtest Tool</h1>
     <div class="sub">$10,000 start &nbsp;|&nbsp; Quarterly rebalancing &nbsp;|&nbsp; Dividends reinvested &nbsp;|&nbsp; Weekly resolution</div>
   </div>
 </header>
@@ -102,19 +103,19 @@ table.perf-table tr.portfolio-row { background: #dbeafe; font-weight: 700; }
     </div>
 
     <div id="dropdownWrap">
-      <label class="field-label">Select up to 10 holdings (Ctrl/Cmd+Click for multiple)</label>
-      <select id="holdingsSelect" class="holdings-select"></select>
+      <label class="field-label">Select up to 10 holdings (click to expand list, Ctrl/Cmd+Click for multiple)</label>
+      <select id="holdingsSelect" class="holdings-select" multiple size="4"></select>
     </div>
     <div id="customWrap" style="display:none">
       <label class="field-label">Custom tickers (comma-separated, up to 10)</label>
       <textarea id="customTickers" class="ticker-textarea" placeholder="e.g. AAPL, MSFT, BRK-B, VT"></textarea>
-      <button class="btn-secondary" style="margin-top:6px;width:100%" onclick="addCustomTickers()">Add to selection</button>
+      <button class="btn-secondary" onclick="addCustomTickers()">Add to selection</button>
     </div>
 
     <h2 class="panel-title" style="margin-top:16px">2. Selected Holdings &amp; Weights</h2>
     <div id="selectedList_portfolio" class="selected-list"></div>
     <div id="weightTotal_portfolio" class="weight-total"></div>
-    <button class="btn-secondary" style="margin-top:6px;width:100%" onclick="equalizeWeights('portfolio')">Reset to equal weight</button>
+    <button class="btn-secondary" onclick="equalizeWeights('portfolio')">Reset to equal weight</button>
 
     <h2 class="panel-title" style="margin-top:16px">3. Lookback Window</h2>
     <div class="lookback-toggle">
@@ -126,37 +127,38 @@ table.perf-table tr.portfolio-row { background: #dbeafe; font-weight: 700; }
     <div id="benchCheckboxes"></div>
 
     <div class="custom-bench-box" id="customBenchBox">
-      <div class="bench-check-row">
-        <input type="checkbox" id="customBenchEnable" onchange="toggleCustomBench(this.checked)">
-        <label for="customBenchEnable" style="font-weight:700">Add a custom benchmark</label>
+      <div class="bench-check-row" style="border-bottom:none">
+        <div class="top">
+          <input type="checkbox" id="customBenchEnable" onchange="toggleCustomBench(this.checked)">
+          <label for="customBenchEnable" style="font-weight:700">Add a custom benchmark</label>
+        </div>
       </div>
       <div id="customBenchInner" style="display:none">
         <label class="field-label">Benchmark name</label>
         <input type="text" id="customBenchLabel" class="bench-label-input" placeholder="e.g. My Conservative Mix" value="Custom Benchmark">
         <label class="field-label">Tickers (comma-separated, up to 10)</label>
         <textarea id="customBenchTickers" class="ticker-textarea" placeholder="e.g. SPY, TLT, GLD"></textarea>
-        <button class="btn-secondary small" style="margin-top:6px;width:100%" onclick="addCustomBenchTickers()">Add to benchmark</button>
+        <button class="btn-secondary small" onclick="addCustomBenchTickers()">Add to benchmark</button>
         <div id="selectedList_benchmark" class="selected-list" style="margin-top:8px"></div>
         <div id="weightTotal_benchmark" class="weight-total"></div>
-        <button class="btn-secondary small" style="margin-top:6px;width:100%" onclick="equalizeWeights('benchmark')">Reset to equal weight</button>
+        <button class="btn-secondary small" onclick="equalizeWeights('benchmark')">Reset to equal weight</button>
       </div>
     </div>
 
     <button class="btn-primary" id="runBtn" onclick="runBacktest()">Run Backtest</button>
-    <div class="btn-row">
-      <button class="btn-secondary" onclick="downloadPdf()">Download PDF</button>
-      <button class="btn-secondary" onclick="window.print()">Print</button>
-    </div>
+    <button class="btn-secondary" onclick="window.print()">Print / Save as PDF</button>
+    <button class="btn-secondary" onclick="downloadCsv()">Export CSV</button>
   </div>
 
   <div class="panel results">
     <div id="errBox"></div>
     <div class="loading-spin" id="loadingSpin">⏳ Running backtest — fetching price history and simulating quarterly rebalancing...</div>
     <h2 class="panel-title">Performance Chart</h2>
-    <div id="chartWrap"><canvas id="chart" height="110"></canvas></div>
+    <div class="chart-container"><canvas id="chart"></canvas></div>
     <div id="holdingsSummary" class="holdings-summary"></div>
     <h2 class="panel-title" style="margin-top:18px">Performance &amp; Risk Summary</h2>
     <div id="perfTableWrap"></div>
+    <div class="footnote">Sharpe and Sortino ratios assume a 0% risk-free rate. Beta is measured against SPY using weekly returns. Fund expense ratios are already reflected in Yahoo Finance's adjusted price series (deducted from NAV daily), so no separate adjustment is applied.</div>
   </div>
 
 </div>
@@ -167,7 +169,7 @@ const FUNDS_ETF = {{ funds_etf | tojson }};
 const BENCHMARKS = {{ benchmarks | tojson }};
 const MAX_HOLDINGS = {{ max_holdings }};
 
-const BENCH_COLORS = { spy_only: '#6b7280', dalio_all_weather: '#16a34a', sixty_forty: '#b45309', growth: '#dc2626' };
+const BENCH_COLORS = { spy_only: '#6b7280', dalio_all_weather: '#16a34a', sixty_forty: '#f59e0b', growth: '#dc2626' };
 const COLORS = Object.assign({ portfolio: '#2563eb', custom_benchmark: '#9333ea' }, BENCH_COLORS);
 const LABELS = { portfolio: 'Your Portfolio' };
 
@@ -217,19 +219,30 @@ function populateDropdown() {
     opt.textContent = f.symbol + ' — ' + f.name;
     sel.appendChild(opt);
   });
-  sel.onchange = () => { addSymbol('portfolio', sel.value); sel.value = ''; };
+  sel.size = 4;
+  sel.onfocus = () => { sel.size = 10; };
+  sel.onblur  = () => { sel.size = 4; };
+  sel.onchange = () => {
+    const chosen = Array.from(sel.selectedOptions).map(o => o.value);
+    chosen.forEach(sym => addSymbol('portfolio', sym));
+  };
 }
 
 function renderBenchCheckboxes() {
   const wrap = document.getElementById('benchCheckboxes');
   wrap.innerHTML = '';
   Object.keys(BENCHMARKS).forEach(key => {
+    const comp = Object.entries(BENCHMARKS[key].weights)
+      .map(([t, w]) => `${t} ${Math.round(w * 100)}%`).join(' · ');
     const row = document.createElement('div');
     row.className = 'bench-check-row';
-    row.innerHTML = `<input type="checkbox" id="bc_${key}" ${benchEnabled[key] ? 'checked' : ''}
-        onchange="benchEnabled['${key}']=this.checked">
-      <span class="swatch" style="background:${BENCH_COLORS[key]}"></span>
-      <label for="bc_${key}">${BENCHMARKS[key].label}</label>`;
+    row.innerHTML = `<div class="top">
+        <input type="checkbox" id="bc_${key}" ${benchEnabled[key] ? 'checked' : ''}
+            onchange="benchEnabled['${key}']=this.checked">
+        <span class="swatch" style="background:${BENCH_COLORS[key]}"></span>
+        <label for="bc_${key}">${BENCHMARKS[key].label}</label>
+      </div>
+      <div class="composition">${comp}</div>`;
     wrap.appendChild(row);
   });
 }
@@ -398,7 +411,9 @@ function labelFor(key, data) {
 function renderChart(data) {
   const ctx = document.getElementById('chart').getContext('2d');
   const labels = data.series.portfolio.dates;
-  const datasets = Object.keys(data.series).map(key => ({
+
+  const mainKeys = Object.keys(data.series).filter(k => k !== 'portfolio_ma63');
+  const datasets = mainKeys.map(key => ({
     label: labelFor(key, data),
     data: data.series[key].values,
     borderColor: COLORS[key] || '#000',
@@ -407,15 +422,42 @@ function renderChart(data) {
     pointRadius: 0,
     tension: 0.05,
   }));
+
+  if (data.series.portfolio_ma63) {
+    datasets.push({
+      label: 'Your Portfolio (63-wk avg)',
+      data: data.series.portfolio_ma63.values,
+      borderColor: COLORS.portfolio,
+      backgroundColor: 'transparent',
+      borderWidth: 1.4,
+      borderDash: [6, 4],
+      pointRadius: 0,
+      tension: 0.05,
+    });
+  }
+
   if (chartInstance) chartInstance.destroy();
   chartInstance = new Chart(ctx, {
     type: 'line',
     data: { labels, datasets },
     options: {
       responsive: true,
+      maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
       scales: {
-        x: { ticks: { maxTicksLimit: 12 } },
+        x: {
+          grid: { display: false },
+          ticks: {
+            autoSkip: false,
+            maxRotation: 0,
+            callback: function(val, idx) {
+              const lbl = labels[idx];
+              const year = lbl.slice(0, 4);
+              if (idx === 0) return year;
+              return labels[idx - 1].slice(0, 4) !== year ? year : null;
+            }
+          }
+        },
         y: { ticks: { callback: v => '$' + v.toLocaleString() } }
       },
       plugins: { legend: { position: 'top' } }
@@ -424,6 +466,7 @@ function renderChart(data) {
 }
 
 function pctStr(v, d=1) { return v === null || v === undefined ? '—' : (v*100).toFixed(d) + '%'; }
+function numStr(v, d=2) { return v === null || v === undefined ? '—' : v.toFixed(d); }
 function pctClass(v) { return v > 0 ? 'pos' : (v < 0 ? 'neg' : ''); }
 
 function renderPerfTable(data) {
@@ -437,16 +480,40 @@ function renderPerfTable(data) {
       <td class="${pctClass(m.total_return)}">${pctStr(m.total_return)}</td>
       <td class="${pctClass(m.cagr)}">${pctStr(m.cagr)}</td>
       <td>${pctStr(m.annualized_vol)}</td>
-      <td class="neg">${pctStr(m.max_drawdown_alltime)}</td>
+      <td class="${pctClass(m.sharpe_ratio)}">${numStr(m.sharpe_ratio)}</td>
+      <td class="${pctClass(m.sortino_ratio)}">${numStr(m.sortino_ratio)}</td>
+      <td>${numStr(m.beta_vs_spy)}</td>
       <td class="neg">${pctStr(m.max_drawdown_rolling_12mo)}</td>
     </tr>`;
   }).join('');
   document.getElementById('perfTableWrap').innerHTML = `
+    <div style="overflow-x:auto">
     <table class="perf-table">
       <thead><tr><th>Strategy</th><th>Final Value</th><th>Total Return</th><th>CAGR</th>
-      <th>Ann. Vol</th><th>Max DD (All-Time)</th><th>Max DD (Rolling 12mo)</th></tr></thead>
+      <th>Ann. Vol</th><th>Sharpe</th><th>Sortino</th><th>Beta (vs SPY)</th><th>Max DD (12-Mo Rolling)</th></tr></thead>
       <tbody>${rows}</tbody>
-    </table>`;
+    </table>
+    </div>`;
+}
+
+function downloadCsv() {
+  if (!lastResult) { showError('Run a backtest first.'); return; }
+  const data = lastResult;
+  const labelOverride = { portfolio_ma63: 'Your Portfolio (63-wk avg)' };
+  const seriesKeys = Object.keys(data.series);
+  const dates = data.series.portfolio.dates;
+  const header = ['Date', ...seriesKeys.map(k => labelOverride[k] || labelFor(k, data))];
+  const rows = dates.map((d, i) => [d, ...seriesKeys.map(k => {
+    const v = data.series[k].values[i];
+    return v === null || v === undefined ? '' : v;
+  })]);
+  const csv = [header.join(','), ...rows.map(r => r.join(','))].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'portfolio_backtest.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
 }
 
 function renderHoldingsSummary(data) {
@@ -467,33 +534,6 @@ function renderHoldingsSummary(data) {
     note = `<div style="color:var(--red);margin-top:6px">No data available for: ${data.missing_tickers.join(', ')} — excluded from calculation.</div>`;
   }
   document.getElementById('holdingsSummary').innerHTML = `<div><b>Holdings:</b> ${links}${cash}</div>${cbHtml}${note}`;
-}
-
-async function downloadPdf() {
-  const body = buildRequestBody();
-  if (!body) return;
-  document.getElementById('loadingSpin').style.display = 'block';
-  try {
-    const resp = await fetch('/api/pdf', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(body)
-    });
-    if (!resp.ok) {
-      const data = await resp.json().catch(() => ({}));
-      showError(data.error || 'PDF generation failed.');
-      return;
-    }
-    const blob = await resp.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'kcm_portfolio_backtest.pdf';
-    document.body.appendChild(a); a.click(); a.remove();
-    URL.revokeObjectURL(url);
-  } catch (e) {
-    showError('PDF error: ' + e.message);
-  } finally {
-    document.getElementById('loadingSpin').style.display = 'none';
-  }
 }
 
 populateDropdown();
