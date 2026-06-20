@@ -1,0 +1,18 @@
+{
+  "spy_only": {
+    "label": "SPY Only",
+    "weights": { "SPY": 1.0 }
+  },
+  "dalio_all_weather": {
+    "label": "Ray Dalio All Weather",
+    "weights": { "VTI": 0.30, "VGLT": 0.40, "IEI": 0.15, "GLD": 0.08, "PDBC": 0.07 }
+  },
+  "sixty_forty": {
+    "label": "60/40 ETF",
+    "weights": { "SPY": 0.50, "VTI": 0.05, "EEM": 0.05, "TLT": 0.20, "IEF": 0.20 }
+  },
+  "growth": {
+    "label": "Growth ETFs",
+    "weights": { "SPY": 0.40, "QQQ": 0.10, "SPHB": 0.20, "MGK": 0.20, "IEF": 0.10 }
+  }
+}
