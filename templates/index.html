@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KCM Portfolio Backtest Tool</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #eef1f6; --surface: #fff; --header: #1e2d45; --border: #d0d7e3;
+  --text: #1a2035; --muted: #6b7280; --accent: #2563eb; --gold: #b45309;
+  --green: #16a34a; --red: #dc2626; --purple: #9333ea;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 13.5px; }
+header { background: var(--header); color: #fff; padding: 12px 18px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+header h1 { font-size: 17px; font-weight: 700; }
+header .sub { font-size: 11px; color: #93c5fd; margin-top: 2px; }
+
+.layout { display: flex; gap: 14px; padding: 14px; align-items: flex-start; flex-wrap: wrap; }
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+.controls { width: 360px; flex-shrink: 0; }
+.results { flex: 1; min-width: 480px; }
+
+h2.panel-title { font-size: 13px; color: var(--header); margin-bottom: 10px; text-transform: uppercase; letter-spacing: .4px; }
+
+.mode-toggle { display: flex; gap: 6px; margin-bottom: 12px; }
+.mode-toggle button { flex: 1; padding: 7px 4px; font-size: 12px; border: 1px solid var(--border); background: #f8fafc; cursor: pointer; border-radius: 6px; font-weight: 600; color: var(--muted); }
+.mode-toggle button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+label.field-label { display: block; font-size: 11px; color: var(--muted); margin: 10px 0 4px; font-weight: 600; text-transform: uppercase; }
+
+select.holdings-select { width: 100%; height: 150px; font-size: 12.5px; border: 1px solid var(--border); border-radius: 6px; padding: 4px; }
+textarea.ticker-textarea { width: 100%; height: 50px; font-size: 12.5px; border: 1px solid var(--border); border-radius: 6px; padding: 6px; resize: vertical; }
+
+.lookback-toggle { display: flex; gap: 6px; }
+.lookback-toggle button { flex: 1; padding: 6px; font-size: 12px; border: 1px solid var(--border); background: #f8fafc; cursor: pointer; border-radius: 6px; font-weight: 600; }
+.lookback-toggle button.active { background: var(--gold); color: #fff; border-color: var(--gold); }
+
+.selected-list .row { display: flex; align-items: center; gap: 6px; padding: 3px 0; border-bottom: 1px solid #f1f5f9; }
+.selected-list .row span.sym { font-family: 'Courier New', monospace; font-weight: 700; width: 60px; }
+.selected-list .row input { width: 56px; font-size: 11.5px; padding: 2px 4px; border: 1px solid var(--border); border-radius: 4px; text-align: right; }
+.selected-list .row button.rm { background: none; border: none; color: var(--red); cursor: pointer; font-size: 13px; }
+.weight-total { font-size: 11px; margin-top: 6px; font-weight: 700; }
+
+.btn-primary { width: 100%; margin-top: 14px; background: var(--accent); color: #fff; border: none; border-radius: 6px; padding: 10px; font-size: 13px; font-weight: 700; cursor: pointer; }
+.btn-primary:hover { background: #1d4ed8; }
+.btn-primary:disabled { background: #9ca3af; cursor: not-allowed; }
+.btn-row { display: flex; gap: 8px; margin-top: 8px; }
+.btn-secondary { flex: 1; background: #fff; border: 1px solid var(--accent); color: var(--accent); border-radius: 6px; padding: 8px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.btn-secondary:hover { background: #eff6ff; }
+.btn-secondary.small { padding: 4px 8px; font-size: 11px; }
+
+.bench-check-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 12.5px; }
+.bench-check-row input { width: 16px; height: 16px; }
+.bench-check-row .swatch { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+.custom-bench-box { border: 1px dashed var(--border); border-radius: 6px; padding: 10px; margin-top: 8px; }
+.custom-bench-box.disabled { opacity: 0.45; pointer-events: none; }
+input.bench-label-input { width: 100%; font-size: 12.5px; padding: 5px 7px; border: 1px solid var(--border); border-radius: 6px; margin-top: 4px; }
+
+#chartWrap { background: var(--surface); border-radius: 6px; padding: 8px; }
+#errBox { display: none; background: #fef2f2; border: 1px solid #fca5a5; color: #991b1b; padding: 8px 12px; border-radius: 6px; font-size: 12px; margin-bottom: 10px; }
+
+table.perf-table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 12px; }
+table.perf-table th { background: #1e2d45; color: #93c5fd; padding: 6px 8px; text-align: right; font-size: 10.5px; text-transform: uppercase; }
+table.perf-table th:first-child, table.perf-table td:first-child { text-align: left; }
+table.perf-table td { padding: 6px 8px; text-align: right; border-bottom: 1px solid #f1f5f9; }
+table.perf-table tr.portfolio-row { background: #dbeafe; font-weight: 700; }
+.pos { color: var(--green); } .neg { color: var(--red); }
+
+.holdings-summary { font-size: 11.5px; margin-top: 10px; }
+.holdings-summary a { color: var(--accent); text-decoration: none; font-family: 'Courier New', monospace; font-weight: 700; }
+.holdings-summary a:hover { text-decoration: underline; }
+
+.loading-spin { display: none; text-align: center; padding: 30px; color: var(--muted); font-size: 13px; }
+
+@media print {
+  header, .controls, .btn-row, .loading-spin { display: none !important; }
+  .layout { display: block; }
+  .results { min-width: 0; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>📊 KCM Portfolio Backtest Tool</h1>
+    <div class="sub">$10,000 start &nbsp;|&nbsp; Quarterly rebalancing &nbsp;|&nbsp; Dividends reinvested &nbsp;|&nbsp; Weekly resolution</div>
+  </div>
+</header>
+
+<div class="layout">
+
+  <div class="panel controls">
+    <h2 class="panel-title">1. Choose Universe</h2>
+    <div class="mode-toggle">
+      <button id="modeMF" class="active" onclick="setMode('mf')">Mutual Funds</button>
+      <button id="modeETF" onclick="setMode('etf')">ETFs</button>
+      <button id="modeCustom" onclick="setMode('custom')">Custom</button>
+    </div>
+
+    <div id="dropdownWrap">
+      <label class="field-label">Select up to 10 holdings (Ctrl/Cmd+Click for multiple)</label>
+      <select id="holdingsSelect" class="holdings-select"></select>
+    </div>
+    <div id="customWrap" style="display:none">
+      <label class="field-label">Custom tickers (comma-separated, up to 10)</label>
+      <textarea id="customTickers" class="ticker-textarea" placeholder="e.g. AAPL, MSFT, BRK-B, VT"></textarea>
+      <button class="btn-secondary" style="margin-top:6px;width:100%" onclick="addCustomTickers()">Add to selection</button>
+    </div>
+
+    <h2 class="panel-title" style="margin-top:16px">2. Selected Holdings &amp; Weights</h2>
+    <div id="selectedList_portfolio" class="selected-list"></div>
+    <div id="weightTotal_portfolio" class="weight-total"></div>
+    <button class="btn-secondary" style="margin-top:6px;width:100%" onclick="equalizeWeights('portfolio')">Reset to equal weight</button>
+
+    <h2 class="panel-title" style="margin-top:16px">3. Lookback Window</h2>
+    <div class="lookback-toggle">
+      <button id="lb10" class="active" onclick="setLookback(10)">10 Years</button>
+      <button id="lb15" onclick="setLookback(15)">15 Years</button>
+    </div>
+
+    <h2 class="panel-title" style="margin-top:16px">4. Benchmarks to Show</h2>
+    <div id="benchCheckboxes"></div>
+
+    <div class="custom-bench-box" id="customBenchBox">
+      <div class="bench-check-row">
+        <input type="checkbox" id="customBenchEnable" onchange="toggleCustomBench(this.checked)">
+        <label for="customBenchEnable" style="font-weight:700">Add a custom benchmark</label>
+      </div>
+      <div id="customBenchInner" style="display:none">
+        <label class="field-label">Benchmark name</label>
+        <input type="text" id="customBenchLabel" class="bench-label-input" placeholder="e.g. My Conservative Mix" value="Custom Benchmark">
+        <label class="field-label">Tickers (comma-separated, up to 10)</label>
+        <textarea id="customBenchTickers" class="ticker-textarea" placeholder="e.g. SPY, TLT, GLD"></textarea>
+        <button class="btn-secondary small" style="margin-top:6px;width:100%" onclick="addCustomBenchTickers()">Add to benchmark</button>
+        <div id="selectedList_benchmark" class="selected-list" style="margin-top:8px"></div>
+        <div id="weightTotal_benchmark" class="weight-total"></div>
+        <button class="btn-secondary small" style="margin-top:6px;width:100%" onclick="equalizeWeights('benchmark')">Reset to equal weight</button>
+      </div>
+    </div>
+
+    <button class="btn-primary" id="runBtn" onclick="runBacktest()">Run Backtest</button>
+    <div class="btn-row">
+      <button class="btn-secondary" onclick="downloadPdf()">Download PDF</button>
+      <button class="btn-secondary" onclick="window.print()">Print</button>
+    </div>
+  </div>
+
+  <div class="panel results">
+    <div id="errBox"></div>
+    <div class="loading-spin" id="loadingSpin">⏳ Running backtest — fetching price history and simulating quarterly rebalancing...</div>
+    <h2 class="panel-title">Performance Chart</h2>
+    <div id="chartWrap"><canvas id="chart" height="110"></canvas></div>
+    <div id="holdingsSummary" class="holdings-summary"></div>
+    <h2 class="panel-title" style="margin-top:18px">Performance &amp; Risk Summary</h2>
+    <div id="perfTableWrap"></div>
+  </div>
+
+</div>
+
+<script>
+const FUNDS_MF  = {{ funds_mf | tojson }};
+const FUNDS_ETF = {{ funds_etf | tojson }};
+const BENCHMARKS = {{ benchmarks | tojson }};
+const MAX_HOLDINGS = {{ max_holdings }};
+
+const BENCH_COLORS = { spy_only: '#6b7280', dalio_all_weather: '#16a34a', sixty_forty: '#b45309', growth: '#dc2626' };
+const COLORS = Object.assign({ portfolio: '#2563eb', custom_benchmark: '#9333ea' }, BENCH_COLORS);
+const LABELS = { portfolio: 'Your Portfolio' };
+
+let mode = 'mf';
+let lookback = 10;
+let lastResult = null;
+let chartInstance = null;
+
+// Two independent ticker/weight pickers, keyed by context name.
+const state = {
+  portfolio: { selected: [], cash: 0 },
+  benchmark: { selected: [], cash: 0 },
+};
+let benchEnabled = {};
+Object.keys(BENCHMARKS).forEach(k => benchEnabled[k] = true);
+let customBenchOn = false;
+
+function fundsForMode() {
+  return mode === 'mf' ? FUNDS_MF : (mode === 'etf' ? FUNDS_ETF : []);
+}
+
+function setMode(m) {
+  mode = m;
+  document.getElementById('modeMF').classList.toggle('active', m === 'mf');
+  document.getElementById('modeETF').classList.toggle('active', m === 'etf');
+  document.getElementById('modeCustom').classList.toggle('active', m === 'custom');
+  document.getElementById('dropdownWrap').style.display = (m === 'custom') ? 'none' : 'block';
+  document.getElementById('customWrap').style.display = (m === 'custom') ? 'block' : 'none';
+  state.portfolio.selected = [];
+  state.portfolio.cash = 0;
+  renderSelected('portfolio');
+  populateDropdown();
+}
+
+function setLookback(yrs) {
+  lookback = yrs;
+  document.getElementById('lb10').classList.toggle('active', yrs === 10);
+  document.getElementById('lb15').classList.toggle('active', yrs === 15);
+}
+
+function populateDropdown() {
+  const sel = document.getElementById('holdingsSelect');
+  sel.innerHTML = '';
+  fundsForMode().forEach(f => {
+    const opt = document.createElement('option');
+    opt.value = f.symbol;
+    opt.textContent = f.symbol + ' — ' + f.name;
+    sel.appendChild(opt);
+  });
+  sel.onchange = () => { addSymbol('portfolio', sel.value); sel.value = ''; };
+}
+
+function renderBenchCheckboxes() {
+  const wrap = document.getElementById('benchCheckboxes');
+  wrap.innerHTML = '';
+  Object.keys(BENCHMARKS).forEach(key => {
+    const row = document.createElement('div');
+    row.className = 'bench-check-row';
+    row.innerHTML = `<input type="checkbox" id="bc_${key}" ${benchEnabled[key] ? 'checked' : ''}
+        onchange="benchEnabled['${key}']=this.checked">
+      <span class="swatch" style="background:${BENCH_COLORS[key]}"></span>
+      <label for="bc_${key}">${BENCHMARKS[key].label}</label>`;
+    wrap.appendChild(row);
+  });
+}
+
+function toggleCustomBench(on) {
+  customBenchOn = on;
+  document.getElementById('customBenchInner').style.display = on ? 'block' : 'none';
+}
+
+// ── Generic basket management (used for both 'portfolio' and 'benchmark' contexts) ──
+
+function addSymbol(ctx, sym) {
+  sym = (sym || '').trim().toUpperCase();
+  if (!sym) return;
+  const s = state[ctx];
+  if (s.selected.find(x => x.symbol === sym)) return;
+  if (s.selected.length >= MAX_HOLDINGS) { alert('Maximum ' + MAX_HOLDINGS + ' holdings.'); return; }
+  s.selected.push({symbol: sym, weight: null});
+  equalizeWeights(ctx);
+}
+
+function addCustomTickers() {
+  const raw = document.getElementById('customTickers').value;
+  raw.split(',').forEach(t => addSymbol('portfolio', t));
+  document.getElementById('customTickers').value = '';
+}
+
+function addCustomBenchTickers() {
+  const raw = document.getElementById('customBenchTickers').value;
+  raw.split(',').forEach(t => addSymbol('benchmark', t));
+  document.getElementById('customBenchTickers').value = '';
+}
+
+function removeSymbol(ctx, sym) {
+  const s = state[ctx];
+  s.selected = s.selected.filter(x => x.symbol !== sym);
+  equalizeWeights(ctx);
+}
+
+function equalizeWeights(ctx) {
+  const s = state[ctx];
+  if (s.selected.length === 0) { renderSelected(ctx); return; }
+  const eq = (100 - s.cash) / s.selected.length;
+  s.selected.forEach(x => x.weight = eq);
+  renderSelected(ctx);
+}
+
+function renderSelected(ctx) {
+  const s = state[ctx];
+  const wrap = document.getElementById('selectedList_' + ctx);
+  wrap.innerHTML = '';
+  s.selected.forEach(x => {
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.innerHTML = `<span class="sym">${x.symbol}</span>
+      <input type="number" min="0" max="100" step="0.5" value="${(x.weight||0).toFixed(1)}"
+             onchange="updateWeight('${ctx}','${x.symbol}', this.value)">%
+      <button class="rm" onclick="removeSymbol('${ctx}','${x.symbol}')">✕</button>`;
+    wrap.appendChild(row);
+  });
+  const cashRow = document.createElement('div');
+  cashRow.className = 'row';
+  cashRow.innerHTML = `<span class="sym">CASH</span>
+    <input type="number" min="0" max="100" step="0.5" value="${s.cash.toFixed(1)}"
+           onchange="updateCash('${ctx}', this.value)">%`;
+  wrap.appendChild(cashRow);
+  updateWeightTotal(ctx);
+}
+
+function updateWeight(ctx, sym, val) {
+  const s = state[ctx];
+  const x = s.selected.find(item => item.symbol === sym);
+  if (x) x.weight = parseFloat(val) || 0;
+  updateWeightTotal(ctx);
+}
+function updateCash(ctx, val) {
+  state[ctx].cash = parseFloat(val) || 0;
+  updateWeightTotal(ctx);
+}
+function updateWeightTotal(ctx) {
+  const s = state[ctx];
+  const total = s.cash + s.selected.reduce((a, x) => a + (x.weight || 0), 0);
+  const el = document.getElementById('weightTotal_' + ctx);
+  el.textContent = 'Total: ' + total.toFixed(1) + '%';
+  el.style.color = Math.abs(total - 100) < 0.05 ? 'var(--green)' : 'var(--red)';
+}
+
+function showError(msg) {
+  const box = document.getElementById('errBox');
+  box.textContent = msg;
+  box.style.display = msg ? 'block' : 'none';
+}
+
+function basketIsValid(ctx) {
+  const s = state[ctx];
+  if (s.selected.length === 0) return false;
+  const total = s.cash + s.selected.reduce((a, x) => a + (x.weight || 0), 0);
+  return Math.abs(total - 100) <= 0.5;
+}
+
+function buildRequestBody() {
+  if (!basketIsValid('portfolio')) {
+    showError('Select at least one holding and make sure weights (incl. Cash) sum to 100%.');
+    return null;
+  }
+  const weights = {};
+  state.portfolio.selected.forEach(x => weights[x.symbol] = x.weight);
+  if (state.portfolio.cash > 0) weights['CASH'] = state.portfolio.cash;
+
+  const includeBenchmarks = Object.keys(BENCHMARKS).filter(k => benchEnabled[k]);
+
+  let customBenchmark = null;
+  if (customBenchOn) {
+    if (!basketIsValid('benchmark')) {
+      showError('Custom benchmark tickers and weights (incl. Cash) must sum to 100%.');
+      return null;
+    }
+    const cbWeights = {};
+    state.benchmark.selected.forEach(x => cbWeights[x.symbol] = x.weight);
+    if (state.benchmark.cash > 0) cbWeights['CASH'] = state.benchmark.cash;
+    customBenchmark = {
+      label: document.getElementById('customBenchLabel').value || 'Custom Benchmark',
+      tickers: state.benchmark.selected.map(x => x.symbol),
+      weights: cbWeights,
+    };
+  }
+
+  showError(null);
+  return {
+    mode, lookback,
+    tickers: state.portfolio.selected.map(x => x.symbol),
+    weights,
+    include_benchmarks: includeBenchmarks,
+    custom_benchmark: customBenchmark,
+  };
+}
+
+async function runBacktest() {
+  const body = buildRequestBody();
+  if (!body) return;
+  document.getElementById('loadingSpin').style.display = 'block';
+  document.getElementById('runBtn').disabled = true;
+  try {
+    const resp = await fetch('/api/backtest', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    const data = await resp.json();
+    if (!resp.ok) { showError(data.error || 'Backtest failed.'); return; }
+    lastResult = data;
+    renderChart(data);
+    renderPerfTable(data);
+    renderHoldingsSummary(data);
+  } catch (e) {
+    showError('Network error: ' + e.message);
+  } finally {
+    document.getElementById('loadingSpin').style.display = 'none';
+    document.getElementById('runBtn').disabled = false;
+  }
+}
+
+function labelFor(key, data) {
+  return LABELS[key] || (data.benchmark_labels && data.benchmark_labels[key]) || key;
+}
+
+function renderChart(data) {
+  const ctx = document.getElementById('chart').getContext('2d');
+  const labels = data.series.portfolio.dates;
+  const datasets = Object.keys(data.series).map(key => ({
+    label: labelFor(key, data),
+    data: data.series[key].values,
+    borderColor: COLORS[key] || '#000',
+    backgroundColor: 'transparent',
+    borderWidth: key === 'portfolio' ? 2.4 : 1.4,
+    pointRadius: 0,
+    tension: 0.05,
+  }));
+  if (chartInstance) chartInstance.destroy();
+  chartInstance = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        x: { ticks: { maxTicksLimit: 12 } },
+        y: { ticks: { callback: v => '$' + v.toLocaleString() } }
+      },
+      plugins: { legend: { position: 'top' } }
+    }
+  });
+}
+
+function pctStr(v, d=1) { return v === null || v === undefined ? '—' : (v*100).toFixed(d) + '%'; }
+function pctClass(v) { return v > 0 ? 'pos' : (v < 0 ? 'neg' : ''); }
+
+function renderPerfTable(data) {
+  const order = ['portfolio', ...Object.keys(data.metrics).filter(k => k !== 'portfolio')];
+  let rows = order.map(key => {
+    const m = data.metrics[key];
+    const cls = key === 'portfolio' ? 'portfolio-row' : '';
+    return `<tr class="${cls}">
+      <td>${labelFor(key, data)}</td>
+      <td>$${m.final_value.toLocaleString()}</td>
+      <td class="${pctClass(m.total_return)}">${pctStr(m.total_return)}</td>
+      <td class="${pctClass(m.cagr)}">${pctStr(m.cagr)}</td>
+      <td>${pctStr(m.annualized_vol)}</td>
+      <td class="neg">${pctStr(m.max_drawdown_alltime)}</td>
+      <td class="neg">${pctStr(m.max_drawdown_rolling_12mo)}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('perfTableWrap').innerHTML = `
+    <table class="perf-table">
+      <thead><tr><th>Strategy</th><th>Final Value</th><th>Total Return</th><th>CAGR</th>
+      <th>Ann. Vol</th><th>Max DD (All-Time)</th><th>Max DD (Rolling 12mo)</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function renderHoldingsSummary(data) {
+  const links = data.portfolio_holdings.map(h =>
+    `<a href="${h.morningstar_url}" target="_blank">${h.symbol}</a> (${h.weight}%)`
+  ).join(' &nbsp;·&nbsp; ');
+  const cash = data.cash_weight ? ` &nbsp;·&nbsp; Cash (${data.cash_weight}%)` : '';
+  let cbHtml = '';
+  if (data.custom_benchmark_holdings) {
+    const cbLabel = data.benchmark_labels.custom_benchmark || 'Custom Benchmark';
+    const cbLinks = data.custom_benchmark_holdings.map(h =>
+      `<a href="${h.morningstar_url}" target="_blank">${h.symbol}</a> (${h.weight}%)`
+    ).join(' &nbsp;·&nbsp; ');
+    cbHtml = `<div style="margin-top:6px"><b>${cbLabel}:</b> ${cbLinks}</div>`;
+  }
+  let note = '';
+  if (data.missing_tickers && data.missing_tickers.length) {
+    note = `<div style="color:var(--red);margin-top:6px">No data available for: ${data.missing_tickers.join(', ')} — excluded from calculation.</div>`;
+  }
+  document.getElementById('holdingsSummary').innerHTML = `<div><b>Holdings:</b> ${links}${cash}</div>${cbHtml}${note}`;
+}
+
+async function downloadPdf() {
+  const body = buildRequestBody();
+  if (!body) return;
+  document.getElementById('loadingSpin').style.display = 'block';
+  try {
+    const resp = await fetch('/api/pdf', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    if (!resp.ok) {
+      const data = await resp.json().catch(() => ({}));
+      showError(data.error || 'PDF generation failed.');
+      return;
+    }
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'kcm_portfolio_backtest.pdf';
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    showError('PDF error: ' + e.message);
+  } finally {
+    document.getElementById('loadingSpin').style.display = 'none';
+  }
+}
+
+populateDropdown();
+renderSelected('portfolio');
+renderSelected('benchmark');
+renderBenchCheckboxes();
+</script>
+</body>
+</html>
