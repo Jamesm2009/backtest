@@ -76,8 +76,36 @@ table.perf-table tr.portfolio-row { background: #dbeafe; font-weight: 700; }
 .loading-spin { display: none; text-align: center; padding: 30px; color: var(--muted); font-size: 13px; }
 .footnote { font-size: 10.5px; color: var(--muted); margin-top: 6px; }
 
+/* ── Header tabs ── */
+.header-tabs { display: flex; gap: 6px; }
+.tab-btn { background: rgba(255,255,255,.12); color: #93c5fd; border: 1px solid rgba(255,255,255,.15); border-radius: 6px; padding: 6px 16px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.tab-btn.active { background: #fff; color: var(--header); border-color: #fff; }
+.tab-btn:hover:not(.active) { background: rgba(255,255,255,.2); }
+
+/* ── Guide view ── */
+#guideView { display: none; padding: 14px; }
+#guideView .guide-wrap { max-width: 900px; margin: 0 auto; }
+#guideView .guide-section { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px 24px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+#guideView h2 { font-size: 17px; color: var(--header); margin-bottom: 12px; border-bottom: 2px solid var(--accent); padding-bottom: 6px; }
+#guideView h3 { font-size: 14px; color: var(--header); margin: 16px 0 8px; }
+#guideView p { font-size: 13.5px; line-height: 1.65; margin-bottom: 10px; color: #334155; }
+#guideView ul { margin: 8px 0 12px 18px; }
+#guideView li { font-size: 13.5px; line-height: 1.6; margin-bottom: 6px; color: #334155; }
+#guideView .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px 0; }
+#guideView .metric-card { background: #f8fafc; border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; }
+#guideView .metric-card .mc-name { font-weight: 700; font-size: 13px; color: var(--header); }
+#guideView .metric-card .mc-desc { font-size: 12.5px; color: #475569; margin-top: 4px; line-height: 1.5; }
+#guideView .bench-card { background: #f8fafc; border: 1px solid var(--border); border-radius: 6px; padding: 12px 16px; margin-bottom: 10px; }
+#guideView .bench-card .bc-name { font-weight: 700; font-size: 14px; }
+#guideView .bench-card .bc-comp { font-size: 12px; color: var(--muted); margin-top: 2px; font-family: 'Courier New', monospace; }
+#guideView .bench-card .bc-desc { font-size: 13px; color: #475569; margin-top: 6px; line-height: 1.55; }
+#guideView .tip-box { background: #eff6ff; border: 1px solid #93c5fd; border-radius: 6px; padding: 12px 16px; margin: 12px 0; }
+#guideView .tip-box .tip-label { font-weight: 700; font-size: 12px; color: #1e40af; text-transform: uppercase; letter-spacing: .3px; }
+#guideView .tip-box p { color: #1e40af; margin-bottom: 4px; }
+
 @media print {
   header, .controls, .loading-spin { display: none !important; }
+  .header-tabs { display: none !important; }
   .layout { display: block; }
   .results { min-width: 0; width: 100% !important; }
   .chart-container {
@@ -104,8 +132,13 @@ table.perf-table tr.portfolio-row { background: #dbeafe; font-weight: 700; }
     <h1>📊 Portfolio Backtest Tool</h1>
     <div class="sub">$10,000 start &nbsp;|&nbsp; Quarterly rebalancing &nbsp;|&nbsp; Dividends reinvested &nbsp;|&nbsp; Weekly resolution</div>
   </div>
+  <div class="header-tabs">
+    <button class="tab-btn active" id="tabBacktest" onclick="switchTab('backtest')">Backtest</button>
+    <button class="tab-btn" id="tabGuide" onclick="switchTab('guide')">Portfolio Guide</button>
+  </div>
 </header>
 
+<div id="backtestView">
 <div class="layout">
 
   <div class="panel controls">
@@ -172,12 +205,258 @@ table.perf-table tr.portfolio-row { background: #dbeafe; font-weight: 700; }
     <div id="holdingsSummary" class="holdings-summary"></div>
     <h2 class="panel-title" style="margin-top:18px">Performance &amp; Risk Summary</h2>
     <div id="perfTableWrap"></div>
-    <div class="footnote">CAGR = Companded Annual Growth Rate. Max DD = Maxilum Draw Down. Sharpe and Sortino ratios assume a 0% risk-free rate. Beta is measured against SPY using weekly returns. Fund expense ratios are already reflected in Yahoo Finance's adjusted price series (deducted from NAV daily), so no separate adjustment is applied.</div>
+    <div class="footnote">Sharpe and Sortino ratios assume a 0% risk-free rate. Beta is measured against SPY using weekly returns. Fund expense ratios are already reflected in Yahoo Finance's adjusted price series (deducted from NAV daily), so no separate adjustment is applied.</div>
   </div>
 
 </div>
+</div><!-- /backtestView -->
+
+<div id="guideView">
+<div class="guide-wrap">
+
+  <div class="guide-section">
+    <h2>Why Backtest a Portfolio?</h2>
+    <p>A backtest simulates how a portfolio <em>would have</em> performed over a historical period, using real market data. It doesn't predict the future, but it helps you understand the risk and return characteristics of different allocation strategies before committing real capital. For a deeper dive into portfolio backtesting methodology, <a href="https://www.portfoliovisualizer.com/backtest-portfolio" target="_blank" style="color:var(--accent)">Portfolio Visualizer</a> is another excellent tool worth exploring alongside this one.</p>
+    <p>This tool lets you compare your portfolio against well-known benchmark strategies, so you can see whether your choices are adding value — or whether a simpler allocation would have done just as well (or better) with less risk.</p>
+    <div class="tip-box">
+      <span class="tip-label">Key principle</span>
+      <p>Past performance doesn't guarantee future results — but past <em>behavior</em> (how a portfolio responds to recessions, rate hikes, and rallies) is a useful guide for how it's likely to behave in similar future conditions.</p>
+    </div>
+  </div>
+
+  <div class="guide-section">
+    <h2>Building Blocks: Asset Classes</h2>
+    <p>Every portfolio is a blend of asset classes, each serving a different role. The right mix depends on your goals, time horizon, and tolerance for seeing your balance drop temporarily.</p>
+
+    <h3>Equities (stocks)</h3>
+    <p>The primary engine for long-term growth. Over 10+ year periods, U.S. large-cap equities (represented by SPY in this tool) have historically delivered 8–12% annualized returns — but with significant drawdowns along the way. The S&P 500 has dropped 30%+ from peak to trough multiple times in the last two decades alone.</p>
+
+    <h3>Fixed income (bonds)</h3>
+    <p>Traditionally the "ballast" in a portfolio — lower returns, but lower volatility and often (though not always) inversely correlated with stocks. Long-term treasuries (TLT) are more sensitive to interest rates and more volatile than short-term bonds (SHY, IEI). In a rising-rate environment like 2022, bonds can fall alongside stocks, reducing their diversification benefit.</p>
+
+    <h3>Commodities &amp; alternatives</h3>
+    <p>Gold (GLD), broad commodities (DBC, PDBC), and crypto (IBIT/GBTC) can provide diversification from traditional stocks and bonds, but they tend to be more volatile individually and may go through extended periods of underperformance. Their value is in low correlation — they often zig when stocks zag.</p>
+
+    <h3>Cash</h3>
+    <p>This tool includes Cash as a holding option. Cash earns 0% in the simulation (a simplification — in practice, money market funds or T-bills would earn a small return). Holding some Cash reduces overall portfolio volatility and provides a "dry powder" buffer, but drags on long-term returns through inflation erosion.</p>
+  </div>
+
+  <div class="guide-section">
+    <h2>Investment Time Horizons</h2>
+    <p>Your time horizon — how long until you need the money — is the single most important factor in determining what kind of portfolio is appropriate. It dictates how much short-term volatility you can afford to absorb in exchange for higher long-term returns.</p>
+
+    <h3>Short-term (0–3 years)</h3>
+    <p>If you need the capital within a few years (e.g., buying a home, a near-term retirement), preservation matters more than growth. Emphasize short-duration bonds (SHY, IEI), cash equivalents, and stable-value funds. Equity exposure should be minimal — a 20% stock decline takes years to recover, and you may not have years. Use this tool with a 10-year lookback to see how much a conservative mix would have returned after accounting for the drawdowns you'd need to survive.</p>
+
+    <h3>Medium-term (3–10 years)</h3>
+    <p>Enough time to ride out a typical market correction (which historically recovers within 1–3 years) but not enough to guarantee recovery from a major bear market. A balanced approach — 40–60% equities with the rest in bonds and diversifiers — gives you meaningful growth potential with manageable risk. The 60/40 ETF and Dalio All Weather benchmarks are natural comparison points for this horizon.</p>
+
+    <h3>Long-term (10+ years)</h3>
+    <p>Time is your biggest advantage. Over 10+ year periods, equities have historically outperformed every other asset class, and even severe bear markets have fully recovered. A higher equity allocation (70–90%) is generally appropriate, with bonds and alternatives serving as rebalancing buffers rather than core return drivers. Compare against SPY Only and Growth ETFs benchmarks to see if your diversification is adding risk-adjusted value or just diluting returns.</p>
+
+    <div class="tip-box">
+      <span class="tip-label">Using this tool for time horizons</span>
+      <p>Run the same portfolio with both the 10-year and 15-year lookback. If the 15-year results are materially worse (because they include a crisis the 10-year window missed), ask yourself: is your actual time horizon long enough to have sat through that drawdown and recovered? If not, reduce equity exposure until the worst-case drawdown is something you can tolerate without selling.</p>
+    </div>
+  </div>
+
+  <div class="guide-section">
+    <h2>Understanding the Metrics</h2>
+    <p>Each metric tells you something different about a portfolio. No single number captures the full picture — look at them together. For additional context on how institutional investors use these metrics, see CION's <a href="https://cioninvestments.com/insights/portfolio-benchmarks-key-metrics/" target="_blank" style="color:var(--accent)">overview of key portfolio benchmark metrics</a>.</p>
+
+    <div class="metric-grid">
+      <div class="metric-card">
+        <div class="mc-name">Total Return</div>
+        <div class="mc-desc">The cumulative gain from start to finish, expressed as a percentage. A $10,000 portfolio ending at $25,000 has a 150% total return. Useful for the headline result, but doesn't tell you how bumpy the ride was.</div>
+      </div>
+      <div class="metric-card">
+        <div class="mc-name">CAGR (Compound Annual Growth Rate)</div>
+        <div class="mc-desc">The smoothed annual return that would produce the same total result if compounded evenly every year. Easier to compare across different time periods than raw total return.</div>
+      </div>
+      <div class="metric-card">
+        <div class="mc-name">Annualized Volatility</div>
+        <div class="mc-desc">How much the portfolio's weekly returns fluctuate, scaled to an annual number. Higher volatility means wider swings — both up and down. A portfolio with 15% volatility will routinely see larger weekly moves than one with 8%.</div>
+      </div>
+      <div class="metric-card">
+        <div class="mc-name">Sharpe Ratio</div>
+        <div class="mc-desc">Return per unit of risk (volatility). Higher is better. Above 1.0 is generally considered good; above 1.5 is excellent. Compares how efficiently the portfolio converts risk into return. Penalizes ALL volatility — including upside.</div>
+      </div>
+      <div class="metric-card">
+        <div class="mc-name">Sortino Ratio</div>
+        <div class="mc-desc">Like Sharpe, but only penalizes <em>downside</em> volatility (weeks where the return was negative). More relevant if you care about avoiding losses more than you care about smoothing gains. Typically higher than the Sharpe for the same portfolio.</div>
+      </div>
+      <div class="metric-card">
+        <div class="mc-name">Beta (vs SPY)</div>
+        <div class="mc-desc">How much the portfolio moves relative to the S&P 500. Beta of 1.0 = moves in lockstep. Below 1.0 = less sensitive to market swings (more defensive). Above 1.0 = amplified market exposure. A bond-heavy portfolio might have a Beta of 0.3–0.5.</div>
+      </div>
+      <div class="metric-card">
+        <div class="mc-name">Max Drawdown (12-Mo Rolling)</div>
+        <div class="mc-desc">The worst peak-to-trough decline within any rolling 12-month window. This is the "how bad could it get in a bad year?" number. A drawdown of -25% means at some point during the backtest, the portfolio lost a quarter of its value within a single year.</div>
+      </div>
+      <div class="metric-card">
+        <div class="mc-name">63-Week Moving Average</div>
+        <div class="mc-desc">The dashed line on the chart. Smooths out short-term noise to show the portfolio's underlying trend. When the portfolio value is above this line, the trend is generally positive; below it suggests a downtrend or correction.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="guide-section">
+    <h2>Risk Profiles &amp; Asset Allocation</h2>
+    <p>A risk profile is a structured way to match a portfolio's aggressiveness to an investor's circumstances — their time horizon, income needs, emotional tolerance for losses, and financial capacity to absorb them. Here's how common profiles translate into allocation ranges:</p>
+
+    <h3>Conservative</h3>
+    <p>Equities 20–40%, bonds 40–60%, alternatives/cash 10–20%. Prioritizes capital preservation and income. Drawdowns beyond -10% to -15% would be uncomfortable. Best suited for short time horizons, near-retirees, or anyone who can't afford to see their balance drop significantly. Compare against the Dalio All Weather or 60/40 ETF benchmarks — a conservative portfolio should have lower volatility and shallower drawdowns than either.</p>
+
+    <h3>Moderate</h3>
+    <p>Equities 50–65%, bonds 25–35%, alternatives/cash 5–15%. The classic "balanced" approach — willing to accept some volatility for better long-term growth. Drawdowns of -15% to -25% are tolerable. The 60/40 ETF benchmark is the natural comparison point. Most retirement-age target-date funds land in this range.</p>
+
+    <h3>Aggressive</h3>
+    <p>Equities 70–90%, bonds 5–15%, alternatives 5–15%. Growth-first, with bonds serving mainly as a rebalancing buffer. Drawdowns of -25% to -35% are accepted as the cost of higher long-term returns. Compare against SPY Only and Growth ETFs — if you're taking on this much risk, make sure you're actually being compensated with higher Sharpe/Sortino ratios than the simpler benchmarks.</p>
+
+    <div class="tip-box">
+      <span class="tip-label">Using this tool for risk profiling</span>
+      <p>Run your intended allocation, then look at the Max DD (12-Mo Rolling) column. That's roughly the worst single-year outcome you should expect to repeat at some point. If that number makes you uncomfortable, dial back the equity weight until the drawdown falls to a level you'd actually sit through without panic-selling.</p>
+    </div>
+  </div>
+
+  <div class="guide-section">
+    <h2>Overweight, Underweight &amp; Neutral Positioning</h2>
+    <p>These terms describe how your portfolio's allocation to a particular asset class compares to a reference benchmark — typically a balanced index or your strategic (long-term) target allocation.</p>
+
+    <h3>Neutral</h3>
+    <p>Your allocation to an asset class matches your strategic target. If your plan calls for 60% equities and you hold 60%, you're neutral on equities. Neutral is the default — it's the allocation you'd hold if you had no particular view on which asset class is likely to outperform in the near term.</p>
+
+    <h3>Overweight</h3>
+    <p>You hold MORE of an asset class than your strategic target. If your plan calls for 60% equities and you hold 70%, you're 10% overweight equities. This is a tactical bet that equities will outperform other asset classes over the near term. It increases your portfolio's sensitivity to that asset class — amplifying both the upside if you're right and the downside if you're wrong.</p>
+
+    <h3>Underweight</h3>
+    <p>You hold LESS of an asset class than your strategic target. This is a defensive tilt — you're giving up some potential upside in exchange for reduced exposure to a risk you're concerned about (e.g., underweighting equities ahead of a potential recession).</p>
+
+    <h3>How to use this tool for positioning</h3>
+    <p>Run your strategic (neutral) target allocation first and record the results. Then adjust one asset class at a time — shift 5–10% from one holding to another — and re-run the backtest. Compare the Sharpe ratios and drawdowns. If the overweight version has a higher Sharpe AND a shallower drawdown, the tilt is adding value. If it only increases returns with proportionally higher volatility, the risk-adjusted picture hasn't actually improved — you're just taking more risk for more return.</p>
+
+    <div class="tip-box">
+      <span class="tip-label">The rebalancing connection</span>
+      <p>This tool rebalances quarterly, which automatically pulls tactical drifts back toward target weights. In practice, if you intentionally overweight equities, quarterly rebalancing will trim that overweight every 13 weeks. This is the tension between tactical positioning and disciplined rebalancing — and it's why even small deliberate overweights require conviction, since the mechanism is working against you every quarter.</p>
+    </div>
+  </div>
+
+  <div class="guide-section">
+    <h2>The Benchmark Portfolios Explained</h2>
+    <p>Each benchmark represents a different investment philosophy. Comparing your portfolio to these helps you understand what style you're closest to and what trade-offs you're making. For a broader introduction to what benchmarks are and why they matter, see Fidelity's <a href="https://www.fidelity.com/learning-center/trading-investing/what-is-a-benchmark" target="_blank" style="color:var(--accent)">guide to investment benchmarks</a>.</p>
+
+    <div class="bench-card">
+      <div class="bc-name">SPY Only</div>
+      <div class="bc-comp">SPY 100%</div>
+      <div class="bc-desc">Pure U.S. large-cap equity exposure. The simplest possible approach — and historically hard to beat over long periods. If your portfolio underperforms SPY with higher volatility, it's worth asking whether the complexity is adding value. However, SPY-only portfolios suffer the full force of every market downturn, which may not be tolerable for all investors.</div>
+    </div>
+
+    <div class="bench-card">
+      <div class="bc-name">Ray Dalio All Weather</div>
+      <div class="bc-comp">VTI 30% · VGLT 40% · IEI 15% · GLD 8% · PDBC 7%</div>
+      <div class="bc-desc">Designed to perform adequately in any economic environment (growth, recession, inflation, deflation) by diversifying across asset classes that respond differently to each. Prioritizes consistency and capital preservation over maximum returns. Expect lower CAGR than SPY but also significantly lower drawdowns — a lower Beta and higher Sharpe ratio than pure equity.</div>
+    </div>
+
+    <div class="bench-card">
+      <div class="bc-name">60/40 ETF</div>
+      <div class="bc-comp">SPY 50% · VTI 5% · EEM 5% · TLT 20% · IEF 20%</div>
+      <div class="bc-desc">The classic balanced portfolio — historically the default recommendation for moderate-risk investors. 60% equities (mostly U.S., small emerging market tilt) and 40% bonds (mix of long and intermediate-term treasuries). Offers a middle ground: participate in equity upside while bonds cushion downturns. Note: the 2022 experience showed that 60/40 can have difficult years when stocks and bonds fall simultaneously.</div>
+    </div>
+
+    <div class="bench-card">
+      <div class="bc-name">Growth ETFs</div>
+      <div class="bc-comp">SPY 40% · QQQ 10% · SPHB 20% · MGK 20% · IEF 10%</div>
+      <div class="bc-desc">Tilted toward aggressive growth — high-beta stocks, mega-cap growth, and NASDAQ-heavy exposure with only a small bond cushion. Expect the highest returns in a sustained bull market, but the deepest drawdowns in corrections. Suitable for investors with a long time horizon and high risk tolerance who can stomach seeing their portfolio drop 30%+ without panic-selling.</div>
+    </div>
+
+    <div class="bench-card">
+      <div class="bc-name">K.I.S.S. (42Macro)</div>
+      <div class="bc-comp">SPY 70% · TLT 20% · BTC_CHAIN 10%</div>
+      <div class="bc-desc">A simple three-asset portfolio inspired by 42Macro research. The core is traditional (stocks + long bonds), with a small allocation to Bitcoin for asymmetric upside and low correlation with traditional assets. The Bitcoin component uses GBTC historically and IBIT from its 2024 launch. The small Bitcoin weight means it contributes meaningful upside in crypto bull markets without dominating the portfolio's risk in downturns.</div>
+    </div>
+  </div>
+
+  <div class="guide-section">
+    <h2>How to Use This Tool Effectively</h2>
+
+    <h3>Step 1: Start with a hypothesis</h3>
+    <p>Don't just throw tickers at the wall. Start with a question: "Would adding international exposure have helped?", "Is my bond allocation actually reducing risk?", or "How does my current 401(k) mix compare to just buying SPY?"</p>
+
+    <h3>Step 2: Compare against relevant benchmarks</h3>
+    <p>Toggle on the benchmarks most relevant to your question. If you're building an aggressive growth portfolio, the Growth ETFs benchmark is your natural comparison. If you're building a retirement-income portfolio, the Dalio All Weather or 60/40 benchmark matters more than SPY.</p>
+
+    <h3>Step 3: Look at drawdowns, not just returns</h3>
+    <p>The portfolio with the highest return isn't automatically the best — it might also have the deepest drawdowns. A portfolio that returned 12% CAGR with a -25% max drawdown is arguably "better" for most people than one that returned 14% CAGR with a -40% drawdown, because the second one is more likely to trigger panic selling at exactly the wrong time.</p>
+
+    <h3>Step 4: Check the Sharpe and Sortino ratios</h3>
+    <p>These tell you whether the extra return from a riskier portfolio is "worth it" on a risk-adjusted basis. If two portfolios have similar Sharpe ratios but one has much higher returns and much higher volatility, they're essentially the same "quality" of portfolio — one is just a levered version of the other.</p>
+
+    <h3>Step 5: Test different weightings</h3>
+    <p>Adjust the percentage sliders to see how sensitive results are to small changes. If shifting 10% from bonds to equities dramatically changes the risk profile, the portfolio is on an inflection point and small allocation decisions matter. If it barely moves the needle, the portfolio is robust to that particular allocation choice.</p>
+
+    <h3>Step 6: Try both 10-year and 15-year lookbacks</h3>
+    <p>The 10-year window captures mostly the post-2016 bull market (with the COVID crash). The 15-year window includes the aftermath of the 2008 financial crisis — a much more severe stress test. If a portfolio looks great over 10 years but mediocre over 15, its strong results may be period-specific rather than structural.</p>
+
+    <div class="tip-box">
+      <span class="tip-label">Remember</span>
+      <p>This tool models a disciplined investor who rebalances quarterly and never panic-sells. Real-world returns are often worse because investors tend to sell after large drops and buy after rallies — the opposite of what rebalancing does. The behavioral discipline to stick with a plan through drawdowns is often worth more than the "optimal" allocation on paper.</p>
+    </div>
+  </div>
+
+  <div class="guide-section">
+    <h2>Review Cadence: How Often to Reassess</h2>
+    <p>Checking your portfolio too often leads to overtrading and emotional decision-making. Checking too rarely means you miss opportunities to rebalance or adjust to genuinely changed circumstances. Here's a practical cadence:</p>
+
+    <h3>Weekly: awareness, not action</h3>
+    <p>Glance at markets to stay informed, but resist the urge to change anything. Weekly noise is just that — noise. A portfolio that drops 3% in a week might be up 2% the following week. No allocation decision should be driven by a single week's performance.</p>
+
+    <h3>Quarterly: rebalance and review</h3>
+    <p>This is the cadence this tool models, and it's a good rhythm for most investors. Every quarter, check whether your allocation has drifted meaningfully from target (e.g., equities have rallied and are now 70% of a portfolio that's supposed to be 60%). If so, rebalance back to target weights. This is also a good time to run an updated backtest to see how your portfolio's risk characteristics are evolving.</p>
+
+    <h3>Annually: strategic review</h3>
+    <p>Once a year, reassess whether your strategic target allocation itself is still appropriate. Has your time horizon changed (closer to retirement, new financial goals)? Has your risk tolerance changed (a bear market taught you that -30% drawdowns aren't actually tolerable)? Have your income needs changed? This is when you might adjust the target weights themselves — not just rebalance back to them.</p>
+
+    <h3>Event-driven: respond to life changes, not market changes</h3>
+    <p>Major life events — job change, inheritance, home purchase, retirement, health issue — are legitimate reasons to revisit your allocation outside the regular cadence. Market events generally are not, unless they've fundamentally changed the economic outlook (e.g., a regime shift in monetary policy, a structural change to an asset class you hold).</p>
+
+    <div class="tip-box">
+      <span class="tip-label">Using this tool for reviews</span>
+      <p>During your quarterly or annual review, re-run your current allocation in this tool and compare it to the benchmarks. Pay attention to how the metrics have shifted — is your Sharpe ratio deteriorating? Has Beta crept up because equity drift went uncorrected? Is the rolling drawdown widening? These are objective signals that something may need adjusting, more reliable than gut feelings about where markets are headed.</p>
+    </div>
+  </div>
+
+  <div class="guide-section">
+    <h2>Common Portfolio Structuring Pitfalls</h2>
+    <ul>
+      <li><strong>Over-diversification:</strong> Owning 15 funds that all track large-cap U.S. equities doesn't diversify — it just adds cost and complexity. True diversification means owning assets with genuinely different return drivers (stocks, bonds, commodities, international markets).</li>
+      <li><strong>Recency bias:</strong> Building a portfolio based on what performed best in the last 2–3 years almost always disappoints. The sectors and asset classes that led last cycle rarely lead the next one.</li>
+      <li><strong>Ignoring correlations:</strong> Two funds with low correlation provide more diversification benefit than two funds that both move with the S&P 500. Use the Beta column to check — if everything in your portfolio has a Beta near 1.0, you're essentially just holding the market with extra steps.</li>
+      <li><strong>Anchoring on returns, ignoring drawdowns:</strong> Ask yourself: "Could I watch this portfolio drop X% without changing my plan?" If the answer is no, the allocation is too aggressive regardless of the expected return.</li>
+      <li><strong>Neglecting rebalancing:</strong> This tool assumes quarterly rebalancing, which mechanically "buys low, sells high" by trimming winners and adding to laggards. Without rebalancing, your allocation drifts toward whatever performed best — gradually concentrating risk in exactly the asset class most likely to revert.</li>
+    </ul>
+  </div>
+
+  <div class="guide-section">
+    <h2>Further Reading</h2>
+    <p>These external resources provide additional depth on the concepts covered in this guide:</p>
+    <ul>
+      <li><a href="https://www.portfoliovisualizer.com/backtest-portfolio" target="_blank" style="color:var(--accent)"><strong>Portfolio Visualizer — Backtest Portfolio</strong></a> — a complementary backtesting tool with additional features including Monte Carlo simulation, factor analysis, and rolling returns visualization.</li>
+      <li><a href="https://www.fidelity.com/learning-center/trading-investing/what-is-a-benchmark" target="_blank" style="color:var(--accent)"><strong>Fidelity — What Is a Benchmark?</strong></a> — a clear introduction to why benchmarks matter, how to choose the right one, and common mistakes investors make when evaluating performance relative to a benchmark.</li>
+      <li><a href="https://cioninvestments.com/insights/portfolio-benchmarks-key-metrics/" target="_blank" style="color:var(--accent)"><strong>CION Investments — Portfolio Benchmarks: Key Metrics</strong></a> — an institutional perspective on the metrics used to evaluate portfolio performance, including how Sharpe, Sortino, and drawdown measures are applied in practice.</li>
+    </ul>
+  </div>
+
+</div>
+</div><!-- /guideView -->
 
 <script>
+function switchTab(tab) {
+  document.getElementById('backtestView').style.display = (tab === 'backtest') ? 'block' : 'none';
+  document.getElementById('guideView').style.display = (tab === 'guide') ? 'block' : 'none';
+  document.getElementById('tabBacktest').classList.toggle('active', tab === 'backtest');
+  document.getElementById('tabGuide').classList.toggle('active', tab === 'guide');
+}
+
 const FUNDS_MF  = {{ funds_mf | tojson }};
 const FUNDS_ETF = {{ funds_etf | tojson }};
 const BENCHMARKS = {{ benchmarks | tojson }};
