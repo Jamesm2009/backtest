@@ -35,6 +35,24 @@ INCREMENTAL_OVERLAP_DAYS = 21  # re-fetch a small trailing overlap on each updat
 
 PRICE_KEY_PREFIX = "backtest_price_weekly:"
 
+# ── Ticker chains ─────────────────────────────────────────────────────────────
+# A "chained ticker" is a synthetic symbol that stitches together multiple real
+# tickers across date boundaries — e.g. using GBTC for Bitcoin exposure until
+# IBIT launched, then IBIT from launch onward. The engine/UI never knows the
+# difference; it just sees a single continuous price series.
+#
+# Format: { "SYNTHETIC_SYMBOL": [ (real_ticker, cutover_date), ... ] }
+# Each entry uses `real_ticker` FROM its own inception (or from the previous
+# entry's cutover) UNTIL `cutover_date`. The LAST entry's cutover is None
+# (meaning "through to today").
+
+TICKER_CHAINS = {
+    "BTC_CHAIN": [
+        ("GBTC", "2024-01-10"),   # GBTC until IBIT launched
+        ("IBIT", None),            # IBIT from 2024-01-11 onward
+    ],
+}
+
 
 def _pipeline(commands):
     """commands: list of command-arrays, e.g. [["SET","k","v","EX","100"]]"""
@@ -167,15 +185,68 @@ def seed_or_update_ticker(ticker: str, ttl: int = KNOWN_TICKER_TTL_SECONDS):
     return weekly
 
 
+def _build_chain(chain_key: str, years: int = MAX_YEARS_FETCH,
+                  ttl: int = KNOWN_TICKER_TTL_SECONDS):
+    """
+    Fetch each component of a chained ticker, stitch them together at the
+    defined cutover dates, cache the result under the synthetic symbol, and
+    return the combined weekly Series.
+    """
+    chain = TICKER_CHAINS[chain_key]
+    segments = []
+    for i, (real_ticker, cutover) in enumerate(chain):
+        s = get_weekly_series(real_ticker, years=years, ttl=ttl)
+        if s is None or s.empty:
+            continue
+        if i > 0 and len(chain) > 1:
+            # start this segment AFTER the previous entry's cutover
+            prev_cutover = chain[i - 1][1]
+            if prev_cutover:
+                s = s[s.index > pd.Timestamp(prev_cutover)]
+        if cutover:
+            s = s[s.index <= pd.Timestamp(cutover)]
+        if not s.empty:
+            segments.append(s)
+
+    if not segments:
+        return None
+
+    combined = pd.concat(segments).sort_index()
+    combined = combined[~combined.index.duplicated(keep="last")]
+
+    # Cache the stitched result under the synthetic key
+    payload = {
+        "dates": [d.strftime("%Y-%m-%d") for d in combined.index],
+        "close": [round(float(v), 4) for v in combined.values],
+    }
+    redis_set_json(PRICE_KEY_PREFIX + chain_key, payload, ex_seconds=ttl)
+    return combined
+
+
 def get_weekly_series(ticker: str, years: int = MAX_YEARS_FETCH, allow_live_fetch=True,
                        ttl: int = KNOWN_TICKER_TTL_SECONDS):
     """
     Return a pandas Series (weekly Friday closes) for `ticker`, sliced to the
-    most recent `years` years. Tries Redis cache first; falls back to
-    seed_or_update_ticker (and re-caches with `ttl`) if allowed and cache is
-    empty/expired. Pass a short `ttl` for ad hoc/custom tickers that aren't
-    pre-warmed by the cron job.
+    most recent `years` years. Handles three cases:
+    1. Chained ticker (e.g. BTC_CHAIN) — stitches multiple real tickers together
+    2. Normal ticker with Redis cache hit — returns cached data
+    3. Normal ticker, cache miss — falls back to seed_or_update_ticker if allowed
     """
+    # Check if this is a chained ticker
+    if ticker in TICKER_CHAINS:
+        cached = redis_get_json(PRICE_KEY_PREFIX + ticker)
+        weekly = None
+        if cached and cached.get("dates"):
+            idx = pd.to_datetime(cached["dates"])
+            weekly = pd.Series(cached["close"], index=idx)
+        elif allow_live_fetch:
+            weekly = _build_chain(ticker, years=years, ttl=ttl)
+        if weekly is None:
+            return None
+        cutoff = weekly.index[-1] - pd.DateOffset(years=years)
+        return weekly[weekly.index >= cutoff]
+
+    # Normal (non-chained) ticker
     cached = redis_get_json(PRICE_KEY_PREFIX + ticker)
     weekly = None
     if cached and cached.get("dates"):
