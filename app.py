@@ -276,32 +276,63 @@ def refresh():
 @app.route("/redis-test")
 def redis_test():
     """
-    Diagnostic route: confirms whether REDIS_URL/REDIS_TOKEN are configured,
-    does a live round-trip SET/GET, and lists what's actually cached right now.
+    Diagnostic: confirms env vars, does a raw HTTP round-trip to Upstash
+    (bypassing our helpers so we can see exactly what comes back), and
+    lists cached keys.
     """
+    import requests as req
     info = {
         "redis_url_set": bool(ds.REDIS_URL),
         "redis_token_set": bool(ds.REDIS_TOKEN),
+        "redis_url_prefix": ds.REDIS_URL[:40] + "..." if ds.REDIS_URL else None,
     }
     if not ds.REDIS_URL or not ds.REDIS_TOKEN:
-        info["error"] = ("UPSTASH_REDIS_REST_URL and/or UPSTASH_REDIS_REST_TOKEN are not set "
-                          "in this app's environment — every cache call is silently no-op'ing "
-                          "and falling back to a live Yahoo Finance fetch every time. "
+        info["error"] = ("UPSTASH_REDIS_REST_URL and/or UPSTASH_REDIS_REST_TOKEN not set. "
                           "Run: dokku config:set backtest UPSTASH_REDIS_REST_URL=... "
                           "UPSTASH_REDIS_REST_TOKEN=...")
         return jsonify(info), 200
 
-    test_key = "backtest_redis_test_key"
-    set_ok = ds.redis_set_json(test_key, {"ping": "pong"}, ex_seconds=30)
-    readback = ds.redis_get_json(test_key)
-    info["roundtrip_set_ok"] = set_ok
-    info["roundtrip_get_value"] = readback
-    info["roundtrip_passed"] = (readback == {"ping": "pong"})
+    # Raw SET via pipeline endpoint
+    try:
+        set_resp = req.post(
+            f"{ds.REDIS_URL}/pipeline",
+            headers={"Authorization": f"Bearer {ds.REDIS_TOKEN}",
+                     "Content-Type": "application/json"},
+            data=json.dumps([["SET", "backtest_test_ping", "pong", "EX", "60"]]),
+            timeout=10,
+        )
+        info["set_http_status"] = set_resp.status_code
+        info["set_raw_body"] = set_resp.text[:500]
+    except Exception as e:
+        info["set_error"] = str(e)
 
-    keys_result = ds._pipeline([["KEYS", ds.PRICE_KEY_PREFIX + "*"]])
-    keys = keys_result[0].get("result") if keys_result else None
-    info["cached_ticker_count"] = len(keys) if keys else 0
-    info["cached_tickers_sample"] = sorted(keys)[:20] if keys else []
+    # Raw GET via pipeline endpoint
+    try:
+        get_resp = req.post(
+            f"{ds.REDIS_URL}/pipeline",
+            headers={"Authorization": f"Bearer {ds.REDIS_TOKEN}",
+                     "Content-Type": "application/json"},
+            data=json.dumps([["GET", "backtest_test_ping"]]),
+            timeout=10,
+        )
+        info["get_http_status"] = get_resp.status_code
+        info["get_raw_body"] = get_resp.text[:500]
+    except Exception as e:
+        info["get_error"] = str(e)
+
+    # KEYS to see what's cached
+    try:
+        keys_resp = req.post(
+            f"{ds.REDIS_URL}/pipeline",
+            headers={"Authorization": f"Bearer {ds.REDIS_TOKEN}",
+                     "Content-Type": "application/json"},
+            data=json.dumps([["KEYS", "backtest_*"]]),
+            timeout=10,
+        )
+        info["keys_http_status"] = keys_resp.status_code
+        info["keys_raw_body"] = keys_resp.text[:500]
+    except Exception as e:
+        info["keys_error"] = str(e)
 
     return jsonify(info)
 
