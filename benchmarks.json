@@ -14,5 +14,9 @@
   "growth": {
     "label": "Growth ETFs",
     "weights": { "SPY": 0.40, "QQQ": 0.10, "SPHB": 0.20, "MGK": 0.20, "IEF": 0.10 }
+  },
+  "kiss_42macro": {
+    "label": "K.I.S.S. (42Macro)",
+    "weights": { "SPY": 0.70, "TLT": 0.20, "GBTC/IBIT": 0.10 }
   }
 }
