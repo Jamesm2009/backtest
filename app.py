@@ -35,12 +35,24 @@ ETF_BY_SYMBOL = {f["symbol"]: f for f in FUNDS_ETF}
 MAX_HOLDINGS = 10
 VALID_LOOKBACKS = (10, 15)
 
-# All tickers that should be kept warm in Redis by the daily cron
+# All tickers that should be kept warm in Redis by the weekly cron.
+# Includes chain COMPONENT tickers (e.g. GBTC, IBIT) alongside the synthetic
+# chain key (BTC_CHAIN) — the refresh loop fetches components first, then
+# rebuilds the chains.
+_chain_component_tickers = sorted(set(
+    real_ticker
+    for chain in ds.TICKER_CHAINS.values()
+    for real_ticker, _ in chain
+))
 _ALL_KNOWN_TICKERS = sorted(set(
     [f["symbol"] for f in FUNDS_MF] +
     [f["symbol"] for f in FUNDS_ETF] +
-    [t for b in BENCHMARKS.values() for t in b["weights"].keys()]
+    [t for b in BENCHMARKS.values() for t in b["weights"].keys()] +
+    _chain_component_tickers
 ))
+# Real tickers only (exclude synthetic chain keys — those are rebuilt, not fetched)
+_REAL_TICKERS_TO_FETCH = [t for t in _ALL_KNOWN_TICKERS if t not in ds.TICKER_CHAINS]
+_CHAIN_KEYS_TO_REBUILD = [t for t in _ALL_KNOWN_TICKERS if t in ds.TICKER_CHAINS]
 
 _refresh_state = {"running": False, "done": 0, "total": 0, "last_run": None, "errors": []}
 _refresh_lock = threading.Lock()
@@ -242,13 +254,15 @@ def api_backtest():
 
 
 def _do_refresh():
+    total = len(_REAL_TICKERS_TO_FETCH) + len(_CHAIN_KEYS_TO_REBUILD)
     with _refresh_lock:
         _refresh_state["running"] = True
         _refresh_state["done"] = 0
-        _refresh_state["total"] = len(_ALL_KNOWN_TICKERS)
+        _refresh_state["total"] = total
         _refresh_state["errors"] = []
 
-    for t in _ALL_KNOWN_TICKERS:
+    # Phase 1: fetch/update all real tickers
+    for t in _REAL_TICKERS_TO_FETCH:
         try:
             ds.seed_or_update_ticker(t, ttl=ds.KNOWN_TICKER_TTL_SECONDS)
         except Exception as e:
@@ -257,6 +271,16 @@ def _do_refresh():
         with _refresh_lock:
             _refresh_state["done"] += 1
         time.sleep(1)  # be polite to Yahoo Finance
+
+    # Phase 2: rebuild any chained/synthetic tickers from their now-cached components
+    for chain_key in _CHAIN_KEYS_TO_REBUILD:
+        try:
+            ds._build_chain(chain_key, ttl=ds.KNOWN_TICKER_TTL_SECONDS)
+        except Exception as e:
+            with _refresh_lock:
+                _refresh_state["errors"].append(f"{chain_key}: {e}")
+        with _refresh_lock:
+            _refresh_state["done"] += 1
 
     with _refresh_lock:
         _refresh_state["running"] = False
